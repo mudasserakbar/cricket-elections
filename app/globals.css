@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+:root {
+  --color-brand: #A0622A;
+  --color-brand-light: #C07A3A;
+  --color-bg: #F5F1EB;
+  --color-bg-card: #ffffff;
+  --color-border: #D5CEC4;
+  --color-border-light: #E2D9CC;
+  --color-text: #1C1C1E;
+  --color-text-muted: #7A7268;
+  --color-text-faint: #C4BDB3;
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* Hide number input spinners */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
