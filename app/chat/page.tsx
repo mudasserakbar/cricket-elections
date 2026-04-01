@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase, type ChatMessage } from '@/lib/supabase'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { NavBar } from '@/components/NavBar'
 import { useAuth } from '@/components/AuthProvider'
-import { Send, Loader2, MessageCircle, Crown, Shield, Eye } from 'lucide-react'
+import { Send, Loader2, MessageCircle, Crown, Shield, Eye, ChevronUp } from 'lucide-react'
 
 const ROLE_STYLES: Record<string, { badge: string; bubble: string }> = {
   super_admin: { badge: 'bg-yellow-100 text-yellow-800', bubble: 'bg-yellow-50 border-yellow-200' },
@@ -27,7 +27,18 @@ const ROLE_LABELS: Record<string, string> = {
 }
 
 function timeStr(iso: string) {
-  return new Date(iso).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit', hour12: true })
+  const d = new Date(iso)
+  const today = new Date()
+  const yesterday = new Date(today)
+  yesterday.setDate(today.getDate() - 1)
+
+  const isToday = d.toDateString() === today.toDateString()
+  const isYesterday = d.toDateString() === yesterday.toDateString()
+
+  const time = d.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit', hour12: true })
+  if (isToday) return time
+  if (isYesterday) return `Yesterday ${time}`
+  return `${d.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })} ${time}`
 }
 
 function Avatar({ email, role }: { email: string; role: string }) {
@@ -43,48 +54,58 @@ function Avatar({ email, role }: { email: string; role: string }) {
   )
 }
 
-const LOAD_LIMIT = 100
+const PAGE_SIZE = 50
 
 export default function ChatPage() {
-  const { user, role, isAdmin } = useAuth()
-  const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [loading, setLoading] = useState(true)
-  const [content, setContent] = useState('')
-  const [sending, setSending] = useState(false)
-  const bottomRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const { user, role } = useAuth()
+  const [messages, setMessages]       = useState<ChatMessage[]>([])
+  const [loading, setLoading]         = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore]         = useState(false)
+  const [content, setContent]         = useState('')
+  const [sending, setSending]         = useState(false)
+
+  const bottomRef    = useRef<HTMLDivElement>(null)
+  const scrollRef    = useRef<HTMLDivElement>(null)
+  const inputRef     = useRef<HTMLInputElement>(null)
   const announcedRef = useRef(false)
 
+  // ── Initial load (most recent PAGE_SIZE messages) ────────────────────────────
   useEffect(() => {
     if (!user?.email || !role) return
 
     async function init() {
-      // Load last N messages
-      const { data } = await supabase
+      const { data, count } = await supabase
         .from('chat_messages')
-        .select('*')
+        .select('*', { count: 'exact' })
         .order('created_at', { ascending: false })
-        .limit(LOAD_LIMIT)
+        .limit(PAGE_SIZE)
 
-      if (data) setMessages((data as ChatMessage[]).reverse())
+      if (data) {
+        const sorted = (data as ChatMessage[]).reverse()
+        setMessages(sorted)
+        // There's more history if total count exceeds what we loaded
+        if (count && count > PAGE_SIZE) setHasMore(true)
+      }
       setLoading(false)
 
-      // Announce join once per session (not on every render)
+      // Announce join once per browser session
       const sessionKey = `qcf_chat_joined_${user!.email}`
       if (!announcedRef.current && !sessionStorage.getItem(sessionKey)) {
         announcedRef.current = true
         sessionStorage.setItem(sessionKey, '1')
         await supabase.from('chat_messages').insert({
           author_email: user!.email,
-          author_role: role,
-          content: `${user!.email} joined the chat`,
-          type: 'join',
+          author_role:  role,
+          content:      `${user!.email} joined the chat`,
+          type:         'join',
         })
       }
     }
+
     init()
 
-    // Real-time subscription
+    // Real-time: new messages stream in live
     const channel = supabase
       .channel('global-chat')
       .on(
@@ -104,27 +125,64 @@ export default function ChatPage() {
     return () => { supabase.removeChannel(channel) }
   }, [user?.email, role])
 
-  // Scroll to bottom on initial load
+  // Scroll to bottom after initial load
   useEffect(() => {
     if (!loading) {
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'instant' }), 50)
     }
   }, [loading])
 
+  // ── Load more (older messages) ────────────────────────────────────────────────
+  const loadMore = useCallback(async () => {
+    if (!messages.length || loadingMore) return
+    setLoadingMore(true)
+
+    const oldest = messages[0].created_at
+
+    // Remember scroll position so the view doesn't jump
+    const container = scrollRef.current
+    const prevScrollHeight = container?.scrollHeight ?? 0
+
+    const { data } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .lt('created_at', oldest)        // strictly older than oldest loaded
+      .order('created_at', { ascending: false })
+      .limit(PAGE_SIZE)
+
+    if (data && data.length > 0) {
+      const older = (data as ChatMessage[]).reverse()
+      setMessages(prev => [...older, ...prev])
+      setHasMore(data.length === PAGE_SIZE) // if we got a full page, there may be more
+
+      // Restore scroll position so user stays at the same spot
+      requestAnimationFrame(() => {
+        if (container) {
+          const newScrollHeight = container.scrollHeight
+          container.scrollTop = newScrollHeight - prevScrollHeight
+        }
+      })
+    } else {
+      setHasMore(false)
+    }
+
+    setLoadingMore(false)
+  }, [messages, loadingMore])
+
+  // ── Send message ─────────────────────────────────────────────────────────────
   async function send() {
     if (!user || !content.trim() || sending || !role) return
     setSending(true)
     const text = content.trim()
     setContent('')
 
-    // Optimistic
     const optimistic: ChatMessage = {
-      id: `opt-${Date.now()}`,
+      id:           `opt-${Date.now()}`,
       author_email: user.email!,
-      author_role: role as ChatMessage['author_role'],
-      content: text,
-      type: 'message',
-      created_at: new Date().toISOString(),
+      author_role:  role as ChatMessage['author_role'],
+      content:      text,
+      type:         'message',
+      created_at:   new Date().toISOString(),
     }
     setMessages(prev => [...prev, optimistic])
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
@@ -146,6 +204,7 @@ export default function ChatPage() {
     inputRef.current?.focus()
   }
 
+  // ── Render ────────────────────────────────────────────────────────────────────
   return (
     <ProtectedRoute>
       <NavBar />
@@ -158,7 +217,7 @@ export default function ChatPage() {
           </div>
           <div>
             <h1 className="text-sm font-bold text-gray-900">QCF Chat Room</h1>
-            <p className="text-[11px] text-gray-400">One room · everyone in it · real-time</p>
+            <p className="text-[11px] text-gray-400">One room · everyone in it · full history</p>
           </div>
           <div className="ml-auto flex items-center gap-1.5">
             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
@@ -167,7 +226,32 @@ export default function ChatPage() {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto py-4 space-y-2 min-h-0">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto py-4 space-y-2 min-h-0">
+
+          {/* Load more button */}
+          {!loading && hasMore && (
+            <div className="flex justify-center pb-2">
+              <button
+                onClick={loadMore}
+                disabled={loadingMore}
+                className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-full transition disabled:opacity-50 cursor-pointer"
+              >
+                {loadingMore
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  : <ChevronUp className="w-3.5 h-3.5" />}
+                {loadingMore ? 'Loading...' : 'Load older messages'}
+              </button>
+            </div>
+          )}
+
+          {!loading && !hasMore && messages.length > 0 && (
+            <div className="flex items-center gap-2 justify-center py-1">
+              <div className="flex-1 h-px bg-gray-100" />
+              <span className="text-[10px] text-gray-400 whitespace-nowrap px-2">Beginning of chat history</span>
+              <div className="flex-1 h-px bg-gray-100" />
+            </div>
+          )}
+
           {loading ? (
             <div className="flex justify-center py-12">
               <Loader2 className="w-5 h-5 animate-spin text-green-600" />
@@ -179,11 +263,12 @@ export default function ChatPage() {
             </div>
           ) : (
             messages.map((msg, idx) => {
-              const isOwn = msg.author_email === user?.email
+              const isOwn  = msg.author_email === user?.email
               const isJoin = msg.type === 'join'
-              const role = msg.author_role ?? 'viewer'
+              const r      = msg.author_role ?? 'viewer'
+              const styles = ROLE_STYLES[r] ?? ROLE_STYLES.viewer
 
-              // Join / system notification
+              // Join notification
               if (isJoin) {
                 return (
                   <div key={msg.id} className="flex items-center gap-2 justify-center py-1">
@@ -196,15 +281,15 @@ export default function ChatPage() {
                 )
               }
 
-              // Group consecutive messages from same author
+              // Group consecutive messages (same author, within 5 min)
               const prev = messages[idx - 1]
-              const showHeader = !prev ||
+              const showHeader =
+                !prev ||
                 prev.author_email !== msg.author_email ||
                 prev.type === 'join' ||
                 new Date(msg.created_at).getTime() - new Date(prev.created_at).getTime() > 5 * 60 * 1000
 
-              const styles = ROLE_STYLES[role] ?? ROLE_STYLES.viewer
-
+              // Own messages — right side green
               if (isOwn) {
                 return (
                   <div key={msg.id} className="flex flex-col items-end gap-0.5">
@@ -218,20 +303,20 @@ export default function ChatPage() {
                 )
               }
 
+              // Others — left side with avatar + role badge
               return (
                 <div key={msg.id} className="flex gap-2 items-end">
-                  {showHeader ? (
-                    <Avatar email={msg.author_email!} role={role} />
-                  ) : (
-                    <div className="w-7 flex-shrink-0" />
-                  )}
+                  {showHeader
+                    ? <Avatar email={msg.author_email!} role={r} />
+                    : <div className="w-7 flex-shrink-0" />
+                  }
                   <div className="max-w-[75%]">
                     {showHeader && (
                       <div className="flex items-center gap-1.5 mb-0.5 ml-1">
                         <span className="text-[11px] font-semibold text-gray-700">{msg.author_email}</span>
                         <span className={`inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full font-bold ${styles.badge}`}>
-                          {ROLE_ICONS[role]}
-                          {ROLE_LABELS[role]}
+                          {ROLE_ICONS[r]}
+                          {ROLE_LABELS[r]}
                         </span>
                         <span className="text-[10px] text-gray-400">{timeStr(msg.created_at)}</span>
                       </div>
