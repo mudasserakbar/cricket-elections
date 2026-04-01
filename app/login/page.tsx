@@ -13,8 +13,17 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [signupSuccess, setSignupSuccess] = useState(false)
-  const { signIn, signUp, user } = useAuth()
+  const { signIn, signUp, user, loading: authLoading } = useAuth()
   const router = useRouter()
+
+  // Wait until auth is resolved before redirecting
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-green-600" />
+      </div>
+    )
+  }
 
   // Already logged in — redirect
   if (user) {

@@ -36,13 +36,8 @@ const AuthContext = createContext<AuthCtx>({
 
 export const useAuth = () => useContext(AuthContext)
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [session, setSession] = useState<Session | null>(null)
-  const [role, setRole] = useState<UserRole>(null)
-  const [loading, setLoading] = useState(true)
-
-  const fetchRole = useCallback(async (email: string) => {
+async function fetchRoleFromDB(email: string): Promise<UserRole> {
+  try {
     const { data, error } = await supabase
       .from('user_roles')
       .select('role')
@@ -50,40 +45,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .single()
 
     if (error || !data) {
-      // No role entry — create one as pending
+      // No entry — insert as pending
       await supabase.from('user_roles').insert({ user_email: email, role: 'pending' })
-      setRole('pending')
-    } else {
-      setRole(data.role as UserRole)
+      return 'pending'
+    }
+    return data.role as UserRole
+  } catch {
+    // If table doesn't exist or any error, default to pending so UI doesn't hang
+    return 'pending'
+  }
+}
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null)
+  const [session, setSession] = useState<Session | null>(null)
+  const [role, setRole] = useState<UserRole>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    // Use onAuthStateChange only — it fires INITIAL_SESSION on load,
+    // which covers both the "already logged in" and "not logged in" cases.
+    // This avoids the double-fetch race between getSession() + onAuthStateChange.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        setSession(session)
+        setUser(session?.user ?? null)
+
+        if (session?.user?.email) {
+          const r = await fetchRoleFromDB(session.user.email)
+          setRole(r)
+        } else {
+          setRole(null)
+        }
+
+        // Always stop loading after first event — no matter what
+        setLoading(false)
+      }
+    )
+
+    // Safety timeout: if auth takes > 5s, stop spinning
+    const timeout = setTimeout(() => setLoading(false), 5000)
+
+    return () => {
+      subscription.unsubscribe()
+      clearTimeout(timeout)
     }
   }, [])
 
   const refreshRole = useCallback(async () => {
-    if (user?.email) await fetchRole(user.email)
-  }, [user, fetchRole])
-
-  useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      if (session?.user?.email) {
-        await fetchRole(session.user.email)
-      }
-      setLoading(false)
-    })
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      if (session?.user?.email) {
-        await fetchRole(session.user.email)
-      } else {
-        setRole(null)
-      }
-    })
-
-    return () => subscription.unsubscribe()
-  }, [fetchRole])
+    if (user?.email) {
+      const r = await fetchRoleFromDB(user.email)
+      setRole(r)
+    }
+  }, [user])
 
   const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
@@ -95,7 +109,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signUp({ email, password })
     if (error) return { error: error.message }
-    // Auto-create pending role entry
     await supabase.from('user_roles').upsert({ user_email: email, role: 'pending' })
     return { error: null }
   }, [])
