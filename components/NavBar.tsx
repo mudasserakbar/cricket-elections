@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 
 export function NavBar() {
-  const { user, isAdmin, role, signOut } = useAuth()
+  const { user, isAdmin, isSuperAdmin, role, signOut } = useAuth()
   const router = useRouter()
   const [loggingOut, setLoggingOut] = useState(false)
 
@@ -65,9 +65,11 @@ export function NavBar() {
           <div className="hidden md:flex items-center gap-1.5">
             <span className="text-[11px] text-gray-400">{user.email}</span>
             <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${
-              isAdmin ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+              isSuperAdmin ? 'bg-yellow-100 text-yellow-800' :
+              isAdmin ? 'bg-purple-100 text-purple-700' :
+              'bg-blue-100 text-blue-700'
             }`}>
-              {role === 'admin' ? 'ADMIN' : 'VIEWER'}
+              {isSuperAdmin ? '⭐ SUPER ADMIN' : isAdmin ? 'ADMIN' : 'VIEWER'}
             </span>
           </div>
           <button

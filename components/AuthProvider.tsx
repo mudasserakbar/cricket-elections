@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useState, useCallback } from 'rea
 import { supabase, logAuthEvent } from '@/lib/supabase'
 import type { User, Session } from '@supabase/supabase-js'
 
-export type UserRole = 'admin' | 'viewer' | 'pending' | null
+export type UserRole = 'super_admin' | 'admin' | 'viewer' | 'pending' | null
 
 interface AuthCtx {
   user: User | null
@@ -16,6 +16,7 @@ interface AuthCtx {
   signOut: () => Promise<void>
   refreshRole: () => Promise<void>
   isAdmin: boolean
+  isSuperAdmin: boolean
   isViewer: boolean
   isPending: boolean
 }
@@ -30,6 +31,7 @@ const AuthContext = createContext<AuthCtx>({
   signOut: async () => {},
   refreshRole: async () => {},
   isAdmin: false,
+  isSuperAdmin: false,
   isViewer: false,
   isPending: false,
 })
@@ -38,20 +40,25 @@ export const useAuth = () => useContext(AuthContext)
 
 async function fetchRoleFromDB(email: string): Promise<UserRole> {
   try {
+    // Always lowercase — prevents case-mismatch bugs
+    const normalizedEmail = email.trim().toLowerCase()
+
     const { data, error } = await supabase
       .from('user_roles')
       .select('role')
-      .eq('user_email', email)
-      .single()
+      .eq('user_email', normalizedEmail)
+      .maybeSingle() // returns null (not error) if no row found
 
-    if (error || !data) {
-      // No entry — insert as pending
-      await supabase.from('user_roles').insert({ user_email: email, role: 'pending' })
+    if (!data) {
+      // No entry — create as pending
+      await supabase.from('user_roles').insert({
+        user_email: normalizedEmail,
+        role: 'pending'
+      })
       return 'pending'
     }
     return data.role as UserRole
   } catch {
-    // If table doesn't exist or any error, default to pending so UI doesn't hang
     return 'pending'
   }
 }
@@ -109,7 +116,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signUp({ email, password })
     if (error) return { error: error.message }
-    await supabase.from('user_roles').upsert({ user_email: email, role: 'pending' })
+    await supabase.from('user_roles').upsert(
+      { user_email: email.trim().toLowerCase(), role: 'pending' },
+      { onConflict: 'user_email' }
+    )
     return { error: null }
   }, [])
 
@@ -124,7 +134,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider value={{
       user, session, role, loading,
       signIn, signUp, signOut, refreshRole,
-      isAdmin: role === 'admin',
+      isSuperAdmin: role === 'super_admin',
+      isAdmin: role === 'admin' || role === 'super_admin', // super_admin has all admin powers
       isViewer: role === 'viewer',
       isPending: role === 'pending',
     }}>

@@ -13,14 +13,14 @@ import {
 interface UserRoleRow {
   id: string
   user_email: string
-  role: 'admin' | 'viewer' | 'pending'
+  role: 'super_admin' | 'admin' | 'viewer' | 'pending'
   approved_by: string | null
   created_at: string
   updated_at: string
 }
 
 export default function UsersPage() {
-  const { user } = useAuth()
+  const { user, isSuperAdmin } = useAuth()
   const [users, setUsers] = useState<UserRoleRow[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState<Set<string>>(new Set())
@@ -181,10 +181,15 @@ export default function UsersPage() {
                         </td>
                         <td className="px-4 py-3">
                           <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full ${
-                            u.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                            u.role === 'super_admin' ? 'bg-yellow-100 text-yellow-800' :
+                            u.role === 'admin' ? 'bg-purple-100 text-purple-700' :
+                            'bg-blue-100 text-blue-700'
                           }`}>
-                            {u.role === 'admin' ? <Shield className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                            {u.role === 'admin' ? 'Admin' : 'Viewer'}
+                            {u.role === 'super_admin' ? <Crown className="w-3 h-3" /> :
+                             u.role === 'admin' ? <Shield className="w-3 h-3" /> :
+                             <Eye className="w-3 h-3" />}
+                            {u.role === 'super_admin' ? '⭐ Super Admin' :
+                             u.role === 'admin' ? 'Admin' : 'Viewer'}
                           </span>
                         </td>
                         <td className="px-4 py-3 hidden sm:table-cell text-xs text-gray-500">
@@ -193,7 +198,7 @@ export default function UsersPage() {
                         <td className="px-4 py-3 text-right">
                           {saving.has(u.id) ? (
                             <Loader2 className="w-4 h-4 animate-spin text-gray-400 ml-auto" />
-                          ) : isMe ? (
+                          ) : isMe || u.role === 'super_admin' ? (
                             <span className="text-[10px] text-gray-400">—</span>
                           ) : (
                             <div className="flex items-center justify-end gap-1">
@@ -204,14 +209,14 @@ export default function UsersPage() {
                                 >
                                   Make Admin
                                 </button>
-                              ) : (
+                              ) : u.role === 'admin' ? (
                                 <button
                                   onClick={() => updateRole(u.id, u.user_email, 'viewer')}
                                   className="text-[11px] font-medium text-blue-600 hover:text-blue-800 px-2 py-1 rounded hover:bg-blue-50 cursor-pointer"
                                 >
                                   Make Viewer
                                 </button>
-                              )}
+                              ) : null}
                               <button
                                 onClick={() => removeUser(u.id, u.user_email)}
                                 className="text-[11px] font-medium text-red-500 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50 cursor-pointer"

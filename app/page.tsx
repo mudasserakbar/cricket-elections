@@ -238,11 +238,15 @@ export default function CommandCentre() {
     return (
       <ProtectedRoute>
         <NavBar />
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <Loader2 className="w-8 h-8 animate-spin text-green-600 mx-auto mb-3" />
-            <p className="text-sm text-gray-500">Loading Command Centre...</p>
+        <div className="max-w-[1600px] mx-auto px-4 py-6 sm:px-6 animate-pulse">
+          <div className="h-10 w-64 bg-gray-200 rounded-lg mb-6" />
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="h-16 bg-gray-200 rounded-lg" />
+            ))}
           </div>
+          <div className="h-10 bg-gray-200 rounded-lg mb-4" />
+          <div className="bg-gray-200 rounded-xl h-96" />
         </div>
       </ProtectedRoute>
     )
