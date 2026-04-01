@@ -9,6 +9,7 @@ import {
 import { supabase, type ClubRow } from '@/lib/supabase'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { NavBar } from '@/components/NavBar'
+import { useAuth } from '@/components/AuthProvider'
 
 type Community = 'Pakistani' | 'Punjabi' | 'Gujarati' | 'Tamil' | 'Bengali' | 'South Indian' | 'North Indian' | 'Caribbean' | 'Mixed' | ''
 type Allegiance = 'ours' | 'opposition' | 'neutral' | null
@@ -64,6 +65,8 @@ function rowToClub(r: ClubRow): Club {
 }
 
 export default function CommandCentre() {
+  const { isAdmin } = useAuth()
+  const canEdit = isAdmin
   const [clubs, setClubs] = useState<Club[]>([])
   const [search, setSearch] = useState("")
   const [communityFilter, setCommunityFilter] = useState<Community | 'all'>('all')
@@ -203,16 +206,19 @@ export default function CommandCentre() {
   }, [clubs])
 
   function toggleVote(clubId: number, value: 'yes' | 'no') {
+    if (!canEdit) return
     const club = clubs.find(c => c.id === clubId)!
     updateClub(clubId, { vote: club.vote === value ? null : value })
   }
 
   function toggleAllegiance(clubId: number, value: Allegiance) {
+    if (!canEdit) return
     const club = clubs.find(c => c.id === clubId)!
     updateClub(clubId, { allegiance: club.allegiance === value ? null : value })
   }
 
   function cycleFollowUp(clubId: number) {
+    if (!canEdit) return
     const club = clubs.find(c => c.id === clubId)!
     const order: FollowUp[] = [null, 'pending', 'contacted', 'confirmed']
     const idx = order.indexOf(club.followUp)
@@ -439,6 +445,14 @@ export default function CommandCentre() {
         </select>
       </div>
 
+      {/* Viewer banner */}
+      {!canEdit && (
+        <div className="mb-3 px-4 py-2.5 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-2 text-sm text-blue-800 font-medium">
+          <Eye className="w-4 h-4 shrink-0" />
+          You have view-only access. Contact an admin for edit permissions.
+        </div>
+      )}
+
       {/* Results count */}
       <div className="flex items-center justify-between mb-2">
         <p className="text-xs text-gray-500 font-medium">{filtered.length} of {stats.total} clubs</p>
@@ -478,8 +492,9 @@ export default function CommandCentre() {
                     <td className="px-3 py-2">
                       <select
                         value={club.community}
-                        onChange={e => updateClub(club.id, { community: e.target.value })}
-                        className={`w-full px-1.5 py-1 text-[11px] rounded border cursor-pointer focus:outline-none focus:ring-1 focus:ring-green-500/30 font-medium ${
+                        onChange={e => canEdit && updateClub(club.id, { community: e.target.value })}
+                        disabled={!canEdit}
+                        className={`w-full px-1.5 py-1 text-[11px] rounded border ${canEdit ? 'cursor-pointer' : 'cursor-default opacity-75'} focus:outline-none focus:ring-1 focus:ring-green-500/30 font-medium ${
                           club.community ? `${COMMUNITY_COLORS[club.community].text} ${COMMUNITY_COLORS[club.community].bg} ${COMMUNITY_COLORS[club.community].border}` : 'text-gray-400 border-gray-200 bg-gray-50'
                         }`}
                       >
@@ -495,16 +510,18 @@ export default function CommandCentre() {
                           type="text"
                           placeholder="Phone..."
                           value={club.phone}
-                          onChange={e => setClubs(prev => prev.map(c => c.id === club.id ? { ...c, phone: e.target.value } : c))}
-                          onBlur={e => updateClub(club.id, { phone: e.target.value })}
+                          readOnly={!canEdit}
+                          onChange={e => canEdit && setClubs(prev => prev.map(c => c.id === club.id ? { ...c, phone: e.target.value } : c))}
+                          onBlur={e => canEdit && updateClub(club.id, { phone: e.target.value })}
                           className="w-full px-2 py-0.5 text-xs border border-gray-200 rounded bg-white text-gray-700 placeholder:text-gray-300 focus:outline-none focus:ring-1 focus:ring-green-500/30 focus:border-green-500"
                         />
                         <input
                           type="text"
                           placeholder="Email..."
                           value={club.email}
-                          onChange={e => setClubs(prev => prev.map(c => c.id === club.id ? { ...c, email: e.target.value } : c))}
-                          onBlur={e => updateClub(club.id, { email: e.target.value })}
+                          readOnly={!canEdit}
+                          onChange={e => canEdit && setClubs(prev => prev.map(c => c.id === club.id ? { ...c, email: e.target.value } : c))}
+                          onBlur={e => canEdit && updateClub(club.id, { email: e.target.value })}
                           className="w-full px-2 py-0.5 text-xs border border-gray-200 rounded bg-white text-green-700 placeholder:text-gray-300 focus:outline-none focus:ring-1 focus:ring-green-500/30 focus:border-green-500"
                         />
                       </div>
@@ -521,11 +538,12 @@ export default function CommandCentre() {
                         type="text"
                         placeholder="Assign..."
                         value={club.coordinator}
+                        readOnly={!canEdit}
                         onChange={e => {
-                          // Local update only on typing
+                          if (!canEdit) return
                           setClubs(prev => prev.map(c => c.id === club.id ? { ...c, coordinator: e.target.value } : c))
                         }}
-                        onBlur={e => updateClub(club.id, { coordinator: e.target.value })}
+                        onBlur={e => canEdit && updateClub(club.id, { coordinator: e.target.value })}
                         className="w-full px-2 py-1 text-xs border border-gray-200 rounded bg-white text-gray-800 placeholder:text-gray-300 focus:outline-none focus:ring-1 focus:ring-green-500/30 focus:border-green-500"
                       />
                     </td>
@@ -614,11 +632,13 @@ export default function CommandCentre() {
                           type="number"
                           min={0}
                           value={club.voteCount}
+                          readOnly={!canEdit}
                           onChange={e => {
+                            if (!canEdit) return
                             const val = parseInt(e.target.value) || 0
                             setClubs(prev => prev.map(c => c.id === club.id ? { ...c, voteCount: Math.max(0, val) } : c))
                           }}
-                          onBlur={e => updateClub(club.id, { vote_count: Math.max(0, parseInt(e.target.value) || 0) })}
+                          onBlur={e => canEdit && updateClub(club.id, { vote_count: Math.max(0, parseInt(e.target.value) || 0) })}
                           className="w-10 text-center text-xs border border-gray-200 rounded py-0.5 bg-white text-gray-800 font-medium [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
                         <button
@@ -634,8 +654,9 @@ export default function CommandCentre() {
                         type="text"
                         placeholder="Add note..."
                         value={club.notes}
-                        onChange={e => setClubs(prev => prev.map(c => c.id === club.id ? { ...c, notes: e.target.value } : c))}
-                        onBlur={e => updateClub(club.id, { notes: e.target.value })}
+                        readOnly={!canEdit}
+                        onChange={e => canEdit && setClubs(prev => prev.map(c => c.id === club.id ? { ...c, notes: e.target.value } : c))}
+                        onBlur={e => canEdit && updateClub(club.id, { notes: e.target.value })}
                         className="w-full px-2 py-1 text-xs border border-gray-200 rounded bg-white text-gray-800 placeholder:text-gray-300 focus:outline-none focus:ring-1 focus:ring-green-500/30 focus:border-green-500"
                       />
                     </td>
