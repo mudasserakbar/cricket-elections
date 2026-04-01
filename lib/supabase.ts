@@ -31,10 +31,15 @@ export interface AuthLog {
 }
 
 export async function logAuthEvent(email: string, action: 'login' | 'logout') {
-  const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : null
-  await supabase.from('auth_logs').insert({
-    user_email: email,
-    action,
-    user_agent: userAgent,
-  })
+  try {
+    const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : null
+    const { error } = await supabase.from('auth_logs').insert({
+      user_email: email,
+      action,
+      user_agent: userAgent,
+    })
+    if (error) console.warn('[auth_logs] insert failed:', error.message)
+  } catch (e) {
+    console.warn('[auth_logs] exception:', e)
+  }
 }
