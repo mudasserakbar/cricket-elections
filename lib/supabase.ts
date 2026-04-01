@@ -19,6 +19,7 @@ export interface ClubRow {
   coordinator: string
   follow_up: string | null
   notes: string
+  updated_at: string | null
 }
 
 export interface AuthLog {

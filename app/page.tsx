@@ -31,6 +31,7 @@ interface Club {
   coordinator: string
   followUp: FollowUp
   notes: string
+  updatedAt: string | null
 }
 
 const COMMUNITY_COLORS: Record<Community, { bg: string; text: string; border: string }> = {
@@ -61,7 +62,20 @@ function rowToClub(r: ClubRow): Club {
     coordinator: r.coordinator || '',
     followUp: r.follow_up as FollowUp,
     notes: r.notes || '',
+    updatedAt: r.updated_at || null,
   }
+}
+
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60_000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  if (days < 7) return `${days}d ago`
+  return new Date(iso).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })
 }
 
 export default function CommandCentre() {
@@ -107,6 +121,7 @@ export default function CommandCentre() {
       if ('follow_up' in updates) patched.followUp = updates.follow_up as FollowUp
       if ('community' in updates) patched.community = updates.community as Community
       if ('notes' in updates) patched.notes = updates.notes!
+      patched.updatedAt = new Date().toISOString()
       return patched
     }))
 
@@ -492,7 +507,14 @@ export default function CommandCentre() {
                     <td className="px-3 py-2.5 text-gray-400 text-xs">
                       {isSaving ? <Loader2 className="w-3 h-3 animate-spin text-green-500" /> : i + 1}
                     </td>
-                    <td className="px-3 py-2.5 font-semibold text-gray-900 whitespace-nowrap">{club.name}</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      <div className="font-semibold text-gray-900">{club.name}</div>
+                      {club.updatedAt && (
+                        <div className="text-[10px] text-gray-400 mt-0.5">
+                          {timeAgo(club.updatedAt)}
+                        </div>
+                      )}
+                    </td>
                     <td className="px-3 py-2">
                       <select
                         value={club.community}
