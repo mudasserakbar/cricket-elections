@@ -2,7 +2,7 @@
 
 import { useAuth } from './AuthProvider'
 import { useRouter } from 'next/navigation'
-import { Target, LogOut, ScrollText, Loader2 } from 'lucide-react'
+import { Target, LogOut, ScrollText, Loader2, Brain } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
 
@@ -29,6 +29,13 @@ export function NavBar() {
           <span className="text-sm font-bold text-gray-900 hidden sm:block">Command Centre</span>
         </Link>
         <div className="flex items-center gap-3">
+          <Link
+            href="/strategy"
+            className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-green-700 transition px-2 py-1.5 rounded-lg hover:bg-green-50"
+          >
+            <Brain className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Strategy</span>
+          </Link>
           <Link
             href="/logs"
             className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-green-700 transition px-2 py-1.5 rounded-lg hover:bg-green-50"
