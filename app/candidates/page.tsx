@@ -125,6 +125,7 @@ interface Candidate {
   status: 'considering' | 'nominated' | 'confirmed' | 'declined'
   notes: string
   is_woman_director: boolean
+  camp: 'ours' | 'opposition'
   created_at: string
 }
 
@@ -141,9 +142,10 @@ interface AddForm {
   email: string
   notes: string
   status: Candidate['status']
+  camp: 'ours' | 'opposition'
 }
 
-const BLANK_FORM: AddForm = { name: '', phone: '', email: '', notes: '', status: 'considering' }
+const BLANK_FORM: AddForm = { name: '', phone: '', email: '', notes: '', status: 'considering', camp: 'ours' }
 
 export default function CandidatesPage() {
   const { isAdmin } = useAuth()
@@ -177,6 +179,7 @@ export default function CandidatesPage() {
       email: form.email.trim(),
       notes: form.notes.trim(),
       status: form.status,
+      camp: form.camp,
       is_woman_director: positionId === 'woman_director',
     }).select().single()
     if (data) setCandidates(prev => [...prev, data as Candidate])
@@ -208,6 +211,11 @@ export default function CandidatesPage() {
     setCandidates(prev => prev.map(c => c.id === id ? { ...c, status } : c))
   }
 
+  async function updateCamp(id: string, camp: 'ours' | 'opposition') {
+    await supabase.from('candidates').update({ camp }).eq('id', id)
+    setCandidates(prev => prev.map(c => c.id === id ? { ...c, camp } : c))
+  }
+
   async function deleteCandidate(id: string) {
     await supabase.from('candidates').delete().eq('id', id)
     setCandidates(prev => prev.filter(c => c.id !== id))
@@ -215,7 +223,7 @@ export default function CandidatesPage() {
 
   function startEdit(candidate: Candidate) {
     setEditingId(candidate.id)
-    setEditForm({ name: candidate.name, phone: candidate.phone, email: candidate.email, notes: candidate.notes, status: candidate.status })
+    setEditForm({ name: candidate.name, phone: candidate.phone, email: candidate.email, notes: candidate.notes, status: candidate.status, camp: candidate.camp ?? 'ours' })
   }
 
   const confirmedCount = candidates.filter(c => c.status === 'confirmed').length
@@ -373,6 +381,11 @@ export default function CandidatesPage() {
                                     {candidate.is_woman_director && (
                                       <span className="text-[9px] px-1.5 py-0.5 bg-pink-100 text-pink-700 rounded-full font-bold">♀ Woman</span>
                                     )}
+                                    {candidate.camp === 'opposition' ? (
+                                      <span className="text-[9px] px-1.5 py-0.5 bg-red-100 text-red-700 rounded-full font-bold">⚔ OPP</span>
+                                    ) : (
+                                      <span className="text-[9px] px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full font-bold">✓ OURS</span>
+                                    )}
                                   </div>
                                   <div className="flex items-center gap-2 mt-1 flex-wrap">
                                     {candidate.phone && (
@@ -395,6 +408,13 @@ export default function CandidatesPage() {
                                 </div>
                                 {isAdmin && (
                                   <div className="flex items-center gap-1 shrink-0">
+                                    <button
+                                      onClick={() => updateCamp(candidate.id, candidate.camp === 'ours' ? 'opposition' : 'ours')}
+                                      className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold cursor-pointer transition ${candidate.camp === 'ours' ? 'bg-green-100 text-green-700 hover:bg-red-100 hover:text-red-700' : 'bg-red-100 text-red-700 hover:bg-green-100 hover:text-green-700'}`}
+                                      title="Toggle camp"
+                                    >
+                                      {candidate.camp === 'ours' ? 'OURS' : 'OPP'}
+                                    </button>
                                     <button onClick={() => startEdit(candidate)} className="p-1 text-gray-400 hover:text-blue-600 cursor-pointer rounded">
                                       <Pencil className="w-3.5 h-3.5" />
                                     </button>
@@ -477,6 +497,16 @@ export default function CandidatesPage() {
                             className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none resize-none"
                             placeholder="Notes..."
                           />
+                          <div className="flex gap-1 p-1 bg-gray-100 rounded-lg">
+                            <button
+                              onClick={() => setForm(f => ({ ...f, camp: 'ours' }))}
+                              className={`flex-1 py-1 text-[11px] font-bold rounded-md transition cursor-pointer ${form.camp === 'ours' ? 'bg-green-600 text-white' : 'text-gray-500 hover:bg-gray-200'}`}
+                            >✓ Our Camp</button>
+                            <button
+                              onClick={() => setForm(f => ({ ...f, camp: 'opposition' }))}
+                              className={`flex-1 py-1 text-[11px] font-bold rounded-md transition cursor-pointer ${form.camp === 'opposition' ? 'bg-red-600 text-white' : 'text-gray-500 hover:bg-gray-200'}`}
+                            >⚔ Opposition</button>
+                          </div>
                           <div className="flex gap-2">
                             <button
                               onClick={() => addCandidate(pos.id, pos.term)}

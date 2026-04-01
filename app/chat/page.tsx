@@ -97,7 +97,7 @@ export default function ChatPage() {
         await supabase.from('chat_messages').insert({
           author_email: user!.email,
           author_role:  role,
-          content:      `${user!.email} joined the chat`,
+          content:      `${(user!.email ?? '').split('@')[0]} joined the chat`,
           type:         'join',
         })
       }
@@ -313,7 +313,7 @@ export default function ChatPage() {
                   <div className="max-w-[75%]">
                     {showHeader && (
                       <div className="flex items-center gap-1.5 mb-0.5 ml-1">
-                        <span className="text-[11px] font-semibold text-gray-700">{msg.author_email}</span>
+                        <span className="text-[11px] font-semibold text-gray-700">{msg.author_email?.split('@')[0]}</span>
                         <span className={`inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full font-bold ${styles.badge}`}>
                           {ROLE_ICONS[r]}
                           {ROLE_LABELS[r]}

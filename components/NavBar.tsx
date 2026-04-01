@@ -2,7 +2,7 @@
 
 import { useAuth } from './AuthProvider'
 import { useRouter } from 'next/navigation'
-import { Target, LogOut, ScrollText, Loader2, Brain, Users, Crown, MessageSquare, MessageCircle } from 'lucide-react'
+import { Target, LogOut, ScrollText, Loader2, Brain, Users, Crown, MessageSquare, MessageCircle, Swords } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
 
@@ -44,11 +44,25 @@ export function NavBar() {
             <span className="hidden sm:inline">Candidates</span>
           </Link>
           <Link
+            href="/board"
+            className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-red-700 transition px-2 py-1.5 rounded-lg hover:bg-red-50"
+          >
+            <Swords className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">War Room</span>
+          </Link>
+          <Link
             href="/discussion"
             className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-green-700 transition px-2 py-1.5 rounded-lg hover:bg-green-50"
           >
             <MessageSquare className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Discussion</span>
+          </Link>
+          <Link
+            href="/chat"
+            className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-green-700 transition px-2 py-1.5 rounded-lg hover:bg-green-50"
+          >
+            <MessageCircle className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Chat</span>
           </Link>
           {isAdmin && (
             <>

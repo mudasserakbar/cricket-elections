@@ -63,7 +63,7 @@ export function PostItem({ post, isAdmin, currentEmail, onDelete, onPin }: Props
         {/* Header row */}
         <div className="flex items-center flex-wrap gap-1.5 mb-1">
           <span className="text-xs font-semibold text-gray-800 truncate">
-            {post.author_email}
+            {post.author_email.split('@')[0]}
           </span>
           {isOwn && (
             <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 font-bold">YOU</span>
