@@ -37,14 +37,36 @@ const POSITIONS = [
   },
   {
     id: 'director_large_1',
-    title: 'Director at Large',
+    title: 'Director at Large 1',
     term: '2yr',
     icon: Users,
     color: 'bg-purple-50 border-purple-300',
     iconColor: 'text-purple-600',
     badgeColor: 'bg-purple-100 text-purple-800',
-    max: 3,
-    note: '3 seats available',
+    max: 1,
+    note: null,
+  },
+  {
+    id: 'director_large_2',
+    title: 'Director at Large 2',
+    term: '2yr',
+    icon: Users,
+    color: 'bg-purple-50 border-purple-300',
+    iconColor: 'text-purple-600',
+    badgeColor: 'bg-purple-100 text-purple-800',
+    max: 1,
+    note: null,
+  },
+  {
+    id: 'director_large_3',
+    title: 'Director at Large 3',
+    term: '2yr',
+    icon: Users,
+    color: 'bg-purple-50 border-purple-300',
+    iconColor: 'text-purple-600',
+    badgeColor: 'bg-purple-100 text-purple-800',
+    max: 1,
+    note: null,
   },
   {
     id: 'vice_president',
@@ -220,8 +242,8 @@ export default function CandidatesPage() {
 
         {/* Summary */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-          <SummaryCard label="Total Positions" value={`${totalSeats} seats`} sub="across 7 roles" color="text-gray-800" />
-          <SummaryCard label="2-Year Terms" value="5 seats" sub="President, Secretary, 3 Directors" color="text-purple-700" />
+          <SummaryCard label="Total Positions" value={`${totalSeats} seats`} sub="across 9 positions" color="text-gray-800" />
+          <SummaryCard label="2-Year Terms" value="5 seats" sub="President, Secretary, Directors 1-3" color="text-purple-700" />
           <SummaryCard label="1-Year Terms" value="4 seats" sub="VP, Treasurer, Director, Woman Dir." color="text-green-700" />
           <SummaryCard label="Confirmed" value={`${confirmedCount}`} sub={`of ${candidates.length} candidates`} color="text-green-700" />
         </div>
