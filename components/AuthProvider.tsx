@@ -70,30 +70,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Use onAuthStateChange only — it fires INITIAL_SESSION on load,
-    // which covers both the "already logged in" and "not logged in" cases.
-    // This avoids the double-fetch race between getSession() + onAuthStateChange.
+    let mounted = true
+
+    // Step 1: Get the current session once — reliable, no race condition
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!mounted) return
+      setSession(session)
+      setUser(session?.user ?? null)
+      if (session?.user?.email) {
+        const r = await fetchRoleFromDB(session.user.email)
+        if (mounted) setRole(r)
+      }
+      if (mounted) setLoading(false)
+    })
+
+    // Step 2: Listen for future changes only (sign in, sign out, token refresh)
+    // Skip INITIAL_SESSION — already handled above via getSession()
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
+        if (!mounted) return
+        if (event === 'INITIAL_SESSION') return // handled above, skip
+
         setSession(session)
         setUser(session?.user ?? null)
-
         if (session?.user?.email) {
           const r = await fetchRoleFromDB(session.user.email)
-          setRole(r)
+          if (mounted) setRole(r)
         } else {
-          setRole(null)
+          if (mounted) setRole(null)
         }
-
-        // Always stop loading after first event — no matter what
-        setLoading(false)
       }
     )
 
-    // Safety timeout: if auth takes > 5s, stop spinning
-    const timeout = setTimeout(() => setLoading(false), 5000)
+    // Safety timeout: never spin forever
+    const timeout = setTimeout(() => { if (mounted) setLoading(false) }, 5000)
 
     return () => {
+      mounted = false
       subscription.unsubscribe()
       clearTimeout(timeout)
     }
