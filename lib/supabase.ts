@@ -52,6 +52,15 @@ export interface DiscussionPost {
   created_at: string
 }
 
+export interface ChatMessage {
+  id: string
+  author_email: string | null
+  author_role: 'super_admin' | 'admin' | 'viewer' | 'system' | null
+  content: string
+  type: 'message' | 'join'
+  created_at: string
+}
+
 export async function logAuthEvent(email: string, action: 'login' | 'logout') {
   try {
     const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : null

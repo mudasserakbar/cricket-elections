@@ -1,0 +1,278 @@
+"use client"
+
+import { useState, useEffect, useRef } from 'react'
+import { supabase, type ChatMessage } from '@/lib/supabase'
+import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { NavBar } from '@/components/NavBar'
+import { useAuth } from '@/components/AuthProvider'
+import { Send, Loader2, MessageCircle, Crown, Shield, Eye } from 'lucide-react'
+
+const ROLE_STYLES: Record<string, { badge: string; bubble: string }> = {
+  super_admin: { badge: 'bg-yellow-100 text-yellow-800', bubble: 'bg-yellow-50 border-yellow-200' },
+  admin:       { badge: 'bg-purple-100 text-purple-700', bubble: 'bg-purple-50 border-purple-200' },
+  viewer:      { badge: 'bg-blue-100 text-blue-700',    bubble: 'bg-blue-50 border-blue-200'    },
+  system:      { badge: '',                              bubble: ''                               },
+}
+
+const ROLE_ICONS: Record<string, React.ReactNode> = {
+  super_admin: <Crown className="w-2.5 h-2.5" />,
+  admin:       <Shield className="w-2.5 h-2.5" />,
+  viewer:      <Eye className="w-2.5 h-2.5" />,
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  super_admin: '⭐ Super Admin',
+  admin:       'Admin',
+  viewer:      'Viewer',
+}
+
+function timeStr(iso: string) {
+  return new Date(iso).toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit', hour12: true })
+}
+
+function Avatar({ email, role }: { email: string; role: string }) {
+  const colors: Record<string, string> = {
+    super_admin: 'from-yellow-500 to-yellow-700',
+    admin:       'from-purple-500 to-purple-700',
+    viewer:      'from-blue-500 to-blue-700',
+  }
+  return (
+    <div className={`w-7 h-7 rounded-full bg-gradient-to-br ${colors[role] ?? 'from-gray-400 to-gray-600'} flex items-center justify-center flex-shrink-0`}>
+      <span className="text-[10px] font-bold text-white uppercase">{email.charAt(0)}</span>
+    </div>
+  )
+}
+
+const LOAD_LIMIT = 100
+
+export default function ChatPage() {
+  const { user, role, isAdmin } = useAuth()
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [loading, setLoading] = useState(true)
+  const [content, setContent] = useState('')
+  const [sending, setSending] = useState(false)
+  const bottomRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const announcedRef = useRef(false)
+
+  useEffect(() => {
+    if (!user?.email || !role) return
+
+    async function init() {
+      // Load last N messages
+      const { data } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(LOAD_LIMIT)
+
+      if (data) setMessages((data as ChatMessage[]).reverse())
+      setLoading(false)
+
+      // Announce join once per session (not on every render)
+      const sessionKey = `qcf_chat_joined_${user!.email}`
+      if (!announcedRef.current && !sessionStorage.getItem(sessionKey)) {
+        announcedRef.current = true
+        sessionStorage.setItem(sessionKey, '1')
+        await supabase.from('chat_messages').insert({
+          author_email: user!.email,
+          author_role: role,
+          content: `${user!.email} joined the chat`,
+          type: 'join',
+        })
+      }
+    }
+    init()
+
+    // Real-time subscription
+    const channel = supabase
+      .channel('global-chat')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'chat_messages' },
+        (payload) => {
+          const msg = payload.new as ChatMessage
+          setMessages(prev => {
+            if (prev.find(m => m.id === msg.id)) return prev
+            return [...prev, msg]
+          })
+          setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+        }
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [user?.email, role])
+
+  // Scroll to bottom on initial load
+  useEffect(() => {
+    if (!loading) {
+      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'instant' }), 50)
+    }
+  }, [loading])
+
+  async function send() {
+    if (!user || !content.trim() || sending || !role) return
+    setSending(true)
+    const text = content.trim()
+    setContent('')
+
+    // Optimistic
+    const optimistic: ChatMessage = {
+      id: `opt-${Date.now()}`,
+      author_email: user.email!,
+      author_role: role as ChatMessage['author_role'],
+      content: text,
+      type: 'message',
+      created_at: new Date().toISOString(),
+    }
+    setMessages(prev => [...prev, optimistic])
+    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .insert({ author_email: user.email!, author_role: role, content: text, type: 'message' })
+      .select()
+      .single()
+
+    if (data) {
+      setMessages(prev => prev.map(m => m.id === optimistic.id ? data as ChatMessage : m))
+    } else if (error) {
+      setMessages(prev => prev.filter(m => m.id !== optimistic.id))
+      setContent(text)
+    }
+
+    setSending(false)
+    inputRef.current?.focus()
+  }
+
+  return (
+    <ProtectedRoute>
+      <NavBar />
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 flex flex-col" style={{ height: 'calc(100vh - 48px)' }}>
+
+        {/* Header */}
+        <div className="flex items-center gap-3 py-4 border-b border-gray-200 flex-shrink-0">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-green-600 to-green-800 flex items-center justify-center shadow-sm">
+            <MessageCircle className="w-4 h-4 text-white" />
+          </div>
+          <div>
+            <h1 className="text-sm font-bold text-gray-900">QCF Chat Room</h1>
+            <p className="text-[11px] text-gray-400">One room · everyone in it · real-time</p>
+          </div>
+          <div className="ml-auto flex items-center gap-1.5">
+            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-[11px] text-gray-400">Live</span>
+          </div>
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto py-4 space-y-2 min-h-0">
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="w-5 h-5 animate-spin text-green-600" />
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-16 text-gray-400">
+              <MessageCircle className="w-8 h-8" />
+              <p className="text-sm">No messages yet. Say hello 👋</p>
+            </div>
+          ) : (
+            messages.map((msg, idx) => {
+              const isOwn = msg.author_email === user?.email
+              const isJoin = msg.type === 'join'
+              const role = msg.author_role ?? 'viewer'
+
+              // Join / system notification
+              if (isJoin) {
+                return (
+                  <div key={msg.id} className="flex items-center gap-2 justify-center py-1">
+                    <div className="flex-1 h-px bg-gray-100" />
+                    <span className="text-[11px] text-gray-400 whitespace-nowrap px-2">
+                      🏏 {msg.author_email} joined · {timeStr(msg.created_at)}
+                    </span>
+                    <div className="flex-1 h-px bg-gray-100" />
+                  </div>
+                )
+              }
+
+              // Group consecutive messages from same author
+              const prev = messages[idx - 1]
+              const showHeader = !prev ||
+                prev.author_email !== msg.author_email ||
+                prev.type === 'join' ||
+                new Date(msg.created_at).getTime() - new Date(prev.created_at).getTime() > 5 * 60 * 1000
+
+              const styles = ROLE_STYLES[role] ?? ROLE_STYLES.viewer
+
+              if (isOwn) {
+                return (
+                  <div key={msg.id} className="flex flex-col items-end gap-0.5">
+                    {showHeader && (
+                      <span className="text-[10px] text-gray-400 mr-1">{timeStr(msg.created_at)}</span>
+                    )}
+                    <div className="max-w-[75%] px-3 py-2 bg-green-700 text-white text-sm rounded-2xl rounded-tr-sm shadow-sm">
+                      {msg.content}
+                    </div>
+                  </div>
+                )
+              }
+
+              return (
+                <div key={msg.id} className="flex gap-2 items-end">
+                  {showHeader ? (
+                    <Avatar email={msg.author_email!} role={role} />
+                  ) : (
+                    <div className="w-7 flex-shrink-0" />
+                  )}
+                  <div className="max-w-[75%]">
+                    {showHeader && (
+                      <div className="flex items-center gap-1.5 mb-0.5 ml-1">
+                        <span className="text-[11px] font-semibold text-gray-700">{msg.author_email}</span>
+                        <span className={`inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full font-bold ${styles.badge}`}>
+                          {ROLE_ICONS[role]}
+                          {ROLE_LABELS[role]}
+                        </span>
+                        <span className="text-[10px] text-gray-400">{timeStr(msg.created_at)}</span>
+                      </div>
+                    )}
+                    <div className={`px-3 py-2 text-sm rounded-2xl rounded-tl-sm border shadow-sm ${styles.bubble} text-gray-800`}>
+                      {msg.content}
+                    </div>
+                  </div>
+                </div>
+              )
+            })
+          )}
+          <div ref={bottomRef} />
+        </div>
+
+        {/* Input */}
+        <div className="flex-shrink-0 py-3 border-t border-gray-200">
+          <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 focus-within:border-green-500 focus-within:ring-2 focus-within:ring-green-500/20 transition-all">
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Message the room..."
+              value={content}
+              onChange={e => setContent(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
+              maxLength={1000}
+              className="flex-1 bg-transparent text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none"
+            />
+            <button
+              onClick={send}
+              disabled={!content.trim() || sending}
+              className="w-7 h-7 bg-green-700 rounded-full flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed hover:bg-green-800 transition cursor-pointer flex-shrink-0"
+            >
+              {sending
+                ? <Loader2 className="w-3.5 h-3.5 text-white animate-spin" />
+                : <Send className="w-3.5 h-3.5 text-white" />}
+            </button>
+          </div>
+          <p className="text-[10px] text-gray-400 mt-1 text-center">Enter to send · visible to all members</p>
+        </div>
+      </div>
+    </ProtectedRoute>
+  )
+}
