@@ -420,7 +420,7 @@ export default function CommandCentre() {
           ))}
         </select>
         <select
-          value={allegianceFilter}
+          value={allegianceFilter ?? 'all'}
           onChange={e => setAllegianceFilter(e.target.value as Allegiance | 'all' | 'unset')}
           className="px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 cursor-pointer shadow-sm"
         >
