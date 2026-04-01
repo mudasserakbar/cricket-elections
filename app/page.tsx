@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import {
   Search, CheckCircle2, XCircle, Users, Hash, ChevronUp, ChevronDown,
   BarChart3, UserCheck, StickyNote, Target, AlertTriangle, TrendingUp,
-  Shield, Eye, Phone, Mail, ChevronRight, X
+  Shield, Eye, Phone, Mail, ChevronRight, X, Loader2, Cloud, CloudOff
 } from 'lucide-react'
+import { supabase, type ClubRow } from '@/lib/supabase'
 
 type Community = 'Pakistani' | 'Punjabi' | 'Gujarati' | 'Tamil' | 'Bengali' | 'South Indian' | 'North Indian' | 'Caribbean' | 'Mixed' | ''
 type Allegiance = 'ours' | 'opposition' | 'neutral' | null
@@ -21,56 +22,13 @@ interface Club {
   admin1: string
   admin2: string
   community: Community
-}
-
-interface VoteState {
   vote: 'yes' | 'no' | null
-  count: number
+  voteCount: number
   allegiance: Allegiance
   coordinator: string
   followUp: FollowUp
-  community: Community
   notes: string
 }
-
-const CLUBS: Club[] = [
-  { id: 1, name: "Adastrians", phone: "", email: "", admin1: "Raheem Gilani", admin2: "", community: "Pakistani" },
-  { id: 2, name: "Atmiya", phone: "", email: "", admin1: "Sanket Dobariya", admin2: "Krutarth Rangunwala", community: "Gujarati" },
-  { id: 3, name: "Bengal United", phone: "", email: "", admin1: "Mahfuz Chowdhury", admin2: "Istiak Khan", community: "Bengali" },
-  { id: 4, name: "Black Caps", phone: "", email: "", admin1: "Tejash Patel", admin2: "", community: "Gujarati" },
-  { id: 5, name: "Brossard Warriors", phone: "", email: "", admin1: "", admin2: "", community: "" },
-  { id: 6, name: "Canadian Tamil", phone: "", email: "", admin1: "", admin2: "", community: "Tamil" },
-  { id: 7, name: "CDN Stars", phone: "", email: "", admin1: "", admin2: "", community: "" },
-  { id: 8, name: "Centennial", phone: "", email: "", admin1: "Pooran Ramkissoon", admin2: "Rynell Rodrigues", community: "Caribbean" },
-  { id: 9, name: "Cote Des Neiges", phone: "", email: "", admin1: "Vijithan Shanmuganathan", admin2: "Kethees Thanabalasingham", community: "Tamil" },
-  { id: 10, name: "Dragons", phone: "(438) 356-4469", email: "ali.xahid@gmail.com", admin1: "Ali Zahid", admin2: "Aneeq Sakrani", community: "Pakistani" },
-  { id: 11, name: "Hindustan Hurricanes", phone: "", email: "", admin1: "Sri Harsha Sanagasetty", admin2: "", community: "South Indian" },
-  { id: 12, name: "Indian Risers", phone: "", email: "", admin1: "Ayyappan Arunachalam", admin2: "", community: "South Indian" },
-  { id: 13, name: "Kebec Ryders", phone: "", email: "", admin1: "Nimesh Patel", admin2: "Ajay Patel", community: "Gujarati" },
-  { id: 14, name: "KVSCM", phone: "", email: "", admin1: "PRITAM Patel", admin2: "Mayur Patel", community: "Gujarati" },
-  { id: 15, name: "LaSalle Strikers", phone: "514-560-0650", email: "ashirzamir23@gmail.com", admin1: "Ashir Zamir", admin2: "SHAHAB ZAMIR", community: "Pakistani" },
-  { id: 16, name: "Laval Kings", phone: "", email: "", admin1: "Fahad Alvi", admin2: "", community: "Pakistani" },
-  { id: 17, name: "Montreal Gladiators", phone: "5145852137", email: "omairsaeed499@gmail.com", admin1: "", admin2: "", community: "Pakistani" },
-  { id: 18, name: "Montreal Knight Riders", phone: "5148040591", email: "mkriderscricket@gmail.com", admin1: "Mandeep Singh", admin2: "", community: "Punjabi" },
-  { id: 19, name: "Montreal Knights", phone: "", email: "", admin1: "", admin2: "", community: "" },
-  { id: 20, name: "Montreal Mavericks", phone: "", email: "", admin1: "", admin2: "", community: "" },
-  { id: 21, name: "Montreal United", phone: "", email: "", admin1: "Rajesh Sharma", admin2: "Vinay HS", community: "North Indian" },
-  { id: 22, name: "Pakistan Cricket Club", phone: "", email: "", admin1: "Adil Bhatti", admin2: "Tahir Abbas Awana", community: "Pakistani" },
-  { id: 23, name: "Primes", phone: "", email: "", admin1: "Haroon Syed", admin2: "Faisal Munawar", community: "Pakistani" },
-  { id: 24, name: "Punjab Lions", phone: "", email: "punjablions.cricket@gmail.com", admin1: "Harsimranjit Singh Sindhar", admin2: "Abhinav Singh", community: "Punjabi" },
-  { id: 25, name: "Punjab Warriors", phone: "", email: "", admin1: "Gursimranjeet singh Tiwana", admin2: "", community: "Punjabi" },
-  { id: 26, name: "Punjab XI", phone: "", email: "", admin1: "Deepak Chauhan", admin2: "", community: "Punjabi" },
-  { id: 27, name: "QCF Masters", phone: "5148250784", email: "dalip@hotmail.com", admin1: "Dalip Kirpaul", admin2: "", community: "Caribbean" },
-  { id: 28, name: "Rive-Sud Rangers", phone: "", email: "", admin1: "", admin2: "", community: "" },
-  { id: 29, name: "Royal CC", phone: "", email: "", admin1: "Ovais Moin", admin2: "Saad Khan", community: "Pakistani" },
-  { id: 30, name: "Sher E Punjab", phone: "", email: "", admin1: "Kamaljeet Parmar", admin2: "", community: "Punjabi" },
-  { id: 31, name: "Sher-Dils", phone: "", email: "", admin1: "Lakshay Malhotra", admin2: "", community: "North Indian" },
-  { id: 32, name: "Spartan Wizards", phone: "", email: "", admin1: "Chintan Acharya", admin2: "", community: "Gujarati" },
-  { id: 33, name: "St. V. Mets", phone: "", email: "", admin1: "", admin2: "", community: "Caribbean" },
-  { id: 34, name: "Super Riders", phone: "", email: "", admin1: "Rajan Nagarajah", admin2: "", community: "Tamil" },
-  { id: 35, name: "Titan United", phone: "", email: "", admin1: "Razwan Iqbal", admin2: "Rinku Singh", community: "Mixed" },
-  { id: 36, name: "Verdun Montreal", phone: "", email: "", admin1: "Puneet Jain", admin2: "Kenneth Pirmal", community: "North Indian" },
-]
 
 const COMMUNITY_COLORS: Record<Community, { bg: string; text: string; border: string }> = {
   'Pakistani': { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
@@ -85,180 +43,199 @@ const COMMUNITY_COLORS: Record<Community, { bg: string; text: string; border: st
   '': { bg: 'bg-gray-50', text: 'text-gray-400', border: 'border-gray-200' },
 }
 
-const COMMUNITY_BAR_COLORS: Record<string, string> = {
-  'Pakistani': 'bg-emerald-500',
-  'Punjabi': 'bg-orange-500',
-  'Gujarati': 'bg-purple-500',
-  'Tamil': 'bg-cyan-500',
-  'Bengali': 'bg-teal-500',
-  'South Indian': 'bg-indigo-500',
-  'North Indian': 'bg-amber-500',
-  'Caribbean': 'bg-pink-500',
-  'Mixed': 'bg-slate-400',
-  'Unassigned': 'bg-gray-300',
-}
-
-const STORAGE_KEY = 'qcf-command-centre-votes'
-
-function initVotes(): Map<number, VoteState> {
-  const m = new Map<number, VoteState>()
-  CLUBS.forEach(c => m.set(c.id, { vote: null, count: 0, allegiance: null, coordinator: '', followUp: null, community: c.community, notes: '' }))
-  return m
-}
-
-function loadVotes(): Map<number, VoteState> {
-  if (typeof window === 'undefined') return initVotes()
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (!saved) return initVotes()
-    const parsed = JSON.parse(saved) as [number, VoteState][]
-    const m = initVotes()
-    parsed.forEach(([id, state]) => {
-      if (m.has(id)) m.set(id, { ...m.get(id)!, ...state })
-    })
-    return m
-  } catch {
-    return initVotes()
+function rowToClub(r: ClubRow): Club {
+  return {
+    id: r.id,
+    name: r.name,
+    phone: r.phone || '',
+    email: r.email || '',
+    admin1: r.admin1 || '',
+    admin2: r.admin2 || '',
+    community: (r.community || '') as Community,
+    vote: r.vote as 'yes' | 'no' | null,
+    voteCount: r.vote_count || 0,
+    allegiance: r.allegiance as Allegiance,
+    coordinator: r.coordinator || '',
+    followUp: r.follow_up as FollowUp,
+    notes: r.notes || '',
   }
 }
 
-function saveVotes(votes: Map<number, VoteState>) {
-  if (typeof window === 'undefined') return
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(votes.entries())))
-}
-
 export default function CommandCentre() {
-  const [votes, setVotes] = useState<Map<number, VoteState>>(initVotes)
+  const [clubs, setClubs] = useState<Club[]>([])
   const [search, setSearch] = useState("")
   const [communityFilter, setCommunityFilter] = useState<Community | 'all'>('all')
   const [allegianceFilter, setAllegianceFilter] = useState<Allegiance | 'all' | 'unset'>('all')
-  const [expandedNotes, setExpandedNotes] = useState<number | null>(null)
-  const [mounted, setMounted] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [synced, setSynced] = useState(true)
+  const [saving, setSaving] = useState<Set<number>>(new Set())
 
+  // Load from Supabase
   useEffect(() => {
-    setVotes(loadVotes())
-    setMounted(true)
+    async function load() {
+      const { data, error } = await supabase
+        .from('election_clubs')
+        .select('*')
+        .order('id')
+      if (error) {
+        console.error('Supabase load error:', error)
+        setSynced(false)
+      } else if (data) {
+        setClubs(data.map(rowToClub))
+        setSynced(true)
+      }
+      setLoading(false)
+    }
+    load()
   }, [])
 
-  useEffect(() => {
-    if (mounted) saveVotes(votes)
-  }, [votes, mounted])
+  // Update a club field in Supabase
+  const updateClub = useCallback(async (clubId: number, updates: Partial<ClubRow>) => {
+    // Optimistic local update
+    setClubs(prev => prev.map(c => {
+      if (c.id !== clubId) return c
+      const patched = { ...c }
+      if ('vote' in updates) patched.vote = updates.vote as 'yes' | 'no' | null
+      if ('vote_count' in updates) patched.voteCount = updates.vote_count!
+      if ('allegiance' in updates) patched.allegiance = updates.allegiance as Allegiance
+      if ('coordinator' in updates) patched.coordinator = updates.coordinator!
+      if ('follow_up' in updates) patched.followUp = updates.follow_up as FollowUp
+      if ('community' in updates) patched.community = updates.community as Community
+      if ('notes' in updates) patched.notes = updates.notes!
+      return patched
+    }))
+
+    setSaving(prev => new Set(prev).add(clubId))
+    const { error } = await supabase
+      .from('election_clubs')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', clubId)
+
+    setSaving(prev => {
+      const next = new Set(prev)
+      next.delete(clubId)
+      return next
+    })
+
+    if (error) {
+      console.error('Save error:', error)
+      setSynced(false)
+    } else {
+      setSynced(true)
+    }
+  }, [])
 
   const filtered = useMemo(() => {
-    let result = CLUBS
+    let result = clubs
     if (communityFilter !== 'all') {
-      result = result.filter(c => {
-        const v = votes.get(c.id)
-        return (v?.community || c.community) === communityFilter
-      })
+      result = result.filter(c => c.community === communityFilter)
     }
     if (allegianceFilter !== 'all') {
       result = result.filter(c => {
-        const v = votes.get(c.id)
-        if (allegianceFilter === 'unset') return !v?.allegiance
-        return v?.allegiance === allegianceFilter
+        if (allegianceFilter === 'unset') return !c.allegiance
+        return c.allegiance === allegianceFilter
       })
     }
     if (search.trim()) {
       const q = search.toLowerCase()
-      result = result.filter(c => {
-        const v = votes.get(c.id)
-        return c.name.toLowerCase().includes(q) ||
-          c.admin1.toLowerCase().includes(q) ||
-          c.admin2.toLowerCase().includes(q) ||
-          (v?.coordinator.toLowerCase().includes(q) ?? false) ||
-          (v?.notes.toLowerCase().includes(q) ?? false)
-      })
+      result = result.filter(c =>
+        c.name.toLowerCase().includes(q) ||
+        c.admin1.toLowerCase().includes(q) ||
+        c.admin2.toLowerCase().includes(q) ||
+        c.coordinator.toLowerCase().includes(q) ||
+        c.notes.toLowerCase().includes(q)
+      )
     }
     return result
-  }, [search, votes, communityFilter, allegianceFilter])
+  }, [search, clubs, communityFilter, allegianceFilter])
 
   const stats = useMemo(() => {
     let yes = 0, no = 0, totalVotes = 0, ours = 0, opposition = 0, neutral = 0
     const communityBreakdown: Record<string, { total: number; ours: number; opposition: number; neutral: number; unassigned: number; voted: number; confirmed: number }> = {}
     const coordinatorBreakdown: Record<string, { total: number; confirmed: number; contacted: number; pending: number; clubs: string[] }> = {}
 
-    votes.forEach((v, clubId) => {
-      const club = CLUBS.find(c => c.id === clubId)
-      if (v.vote === 'yes') yes++
-      if (v.vote === 'no') no++
-      totalVotes += v.count
-      if (v.allegiance === 'ours') ours++
-      if (v.allegiance === 'opposition') opposition++
-      if (v.allegiance === 'neutral') neutral++
+    clubs.forEach(c => {
+      if (c.vote === 'yes') yes++
+      if (c.vote === 'no') no++
+      totalVotes += c.voteCount
+      if (c.allegiance === 'ours') ours++
+      if (c.allegiance === 'opposition') opposition++
+      if (c.allegiance === 'neutral') neutral++
 
-      const comm = v.community || 'Unassigned'
+      const comm = c.community || 'Unassigned'
       if (!communityBreakdown[comm]) communityBreakdown[comm] = { total: 0, ours: 0, opposition: 0, neutral: 0, unassigned: 0, voted: 0, confirmed: 0 }
       communityBreakdown[comm].total++
-      if (v.allegiance === 'ours') communityBreakdown[comm].ours++
-      else if (v.allegiance === 'opposition') communityBreakdown[comm].opposition++
-      else if (v.allegiance === 'neutral') communityBreakdown[comm].neutral++
+      if (c.allegiance === 'ours') communityBreakdown[comm].ours++
+      else if (c.allegiance === 'opposition') communityBreakdown[comm].opposition++
+      else if (c.allegiance === 'neutral') communityBreakdown[comm].neutral++
       else communityBreakdown[comm].unassigned++
-      if (v.vote) communityBreakdown[comm].voted++
-      if (v.followUp === 'confirmed') communityBreakdown[comm].confirmed++
+      if (c.vote) communityBreakdown[comm].voted++
+      if (c.followUp === 'confirmed') communityBreakdown[comm].confirmed++
 
-      if (v.coordinator) {
-        const name = v.coordinator.trim()
+      if (c.coordinator) {
+        const name = c.coordinator.trim()
         if (!coordinatorBreakdown[name]) coordinatorBreakdown[name] = { total: 0, confirmed: 0, contacted: 0, pending: 0, clubs: [] }
         coordinatorBreakdown[name].total++
-        if (club) coordinatorBreakdown[name].clubs.push(club.name)
-        if (v.followUp === 'confirmed') coordinatorBreakdown[name].confirmed++
-        if (v.followUp === 'contacted') coordinatorBreakdown[name].contacted++
-        if (v.followUp === 'pending') coordinatorBreakdown[name].pending++
+        coordinatorBreakdown[name].clubs.push(c.name)
+        if (c.followUp === 'confirmed') coordinatorBreakdown[name].confirmed++
+        if (c.followUp === 'contacted') coordinatorBreakdown[name].contacted++
+        if (c.followUp === 'pending') coordinatorBreakdown[name].pending++
       }
     })
 
-    const noContact = CLUBS.filter(c => !c.phone && !c.email).length
-    const noReps = CLUBS.filter(c => !c.admin1 && !c.admin2).length
-    const noCoordinator = Array.from(votes.values()).filter(v => !v.coordinator).length
-    const withNotes = Array.from(votes.values()).filter(v => v.notes.trim()).length
-    const unassignedAllegiance = CLUBS.length - ours - opposition - neutral
-    const confirmedFollowUp = Array.from(votes.values()).filter(v => v.followUp === 'confirmed').length
-    const contactedFollowUp = Array.from(votes.values()).filter(v => v.followUp === 'contacted').length
+    const noContact = clubs.filter(c => !c.phone && !c.email).length
+    const noReps = clubs.filter(c => !c.admin1 && !c.admin2).length
+    const noCoordinator = clubs.filter(c => !c.coordinator).length
+    const withNotes = clubs.filter(c => c.notes.trim()).length
+    const unassignedAllegiance = clubs.length - ours - opposition - neutral
+    const confirmedFollowUp = clubs.filter(c => c.followUp === 'confirmed').length
+    const contactedFollowUp = clubs.filter(c => c.followUp === 'contacted').length
 
     return {
-      total: CLUBS.length, yes, no, pending: CLUBS.length - yes - no, totalVotes,
+      total: clubs.length, yes, no, pending: clubs.length - yes - no, totalVotes,
       ours, opposition, neutral, unassignedAllegiance,
       communityBreakdown, coordinatorBreakdown,
       noContact, noReps, noCoordinator, withNotes,
       confirmedFollowUp, contactedFollowUp
     }
-  }, [votes])
-
-  function updateVote(clubId: number, partial: Partial<VoteState>) {
-    setVotes(prev => {
-      const next = new Map(prev)
-      const current = next.get(clubId)!
-      next.set(clubId, { ...current, ...partial })
-      return next
-    })
-  }
+  }, [clubs])
 
   function toggleVote(clubId: number, value: 'yes' | 'no') {
-    const current = votes.get(clubId)!
-    updateVote(clubId, { vote: current.vote === value ? null : value })
+    const club = clubs.find(c => c.id === clubId)!
+    updateClub(clubId, { vote: club.vote === value ? null : value })
   }
 
   function toggleAllegiance(clubId: number, value: Allegiance) {
-    const current = votes.get(clubId)!
-    updateVote(clubId, { allegiance: current.allegiance === value ? null : value })
+    const club = clubs.find(c => c.id === clubId)!
+    updateClub(clubId, { allegiance: club.allegiance === value ? null : value })
   }
 
   function cycleFollowUp(clubId: number) {
-    const current = votes.get(clubId)!
+    const club = clubs.find(c => c.id === clubId)!
     const order: FollowUp[] = [null, 'pending', 'contacted', 'confirmed']
-    const idx = order.indexOf(current.followUp)
-    updateVote(clubId, { followUp: order[(idx + 1) % order.length] })
+    const idx = order.indexOf(club.followUp)
+    updateClub(clubId, { follow_up: order[(idx + 1) % order.length] })
   }
 
   function setCount(clubId: number, count: number) {
-    updateVote(clubId, { count: Math.max(0, count) })
+    updateClub(clubId, { vote_count: Math.max(0, count) })
   }
 
-  const majority = Math.ceil(stats.total / 2)
+  const majority = Math.ceil(stats.total / 2) || 1
   const winProbText = stats.ours >= majority ? 'Majority Secured' :
     stats.ours + stats.neutral >= majority ? 'Possible with Neutrals' :
     `Need ${majority - stats.ours} more`
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-green-600 mx-auto mb-3" />
+          <p className="text-sm text-gray-500">Loading Command Centre...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-[1600px] mx-auto px-4 py-6 sm:px-6">
@@ -274,7 +251,15 @@ export default function CommandCentre() {
               <h1 className="text-2xl font-bold text-gray-900 leading-tight">Command Centre</h1>
             </div>
           </div>
-          <p className="text-sm text-gray-500 mt-1 ml-[52px]">{stats.total} clubs tracked &middot; Election Operations</p>
+          <div className="ml-[52px] flex items-center gap-2 mt-1">
+            <p className="text-sm text-gray-500">{stats.total} clubs tracked</p>
+            <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
+              synced ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+            }`}>
+              {synced ? <Cloud className="w-3 h-3" /> : <CloudOff className="w-3 h-3" />}
+              {synced ? 'Synced' : 'Offline'}
+            </span>
+          </div>
         </div>
         <div className="text-right">
           <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold shadow-sm ${
@@ -461,36 +446,34 @@ export default function CommandCentre() {
                 <th className="text-left px-3 py-3 font-semibold text-gray-500 text-xs w-10">#</th>
                 <th className="text-left px-3 py-3 font-semibold text-gray-500 text-xs">Club</th>
                 <th className="text-left px-3 py-3 font-semibold text-gray-500 text-xs w-24">Community</th>
-                <th className="text-left px-3 py-3 font-semibold text-gray-500 text-xs hidden xl:table-cell">Contact</th>
+                <th className="text-left px-3 py-3 font-semibold text-gray-500 text-xs w-36">Contact</th>
                 <th className="text-left px-3 py-3 font-semibold text-gray-500 text-xs">Reps</th>
                 <th className="text-left px-3 py-3 font-semibold text-gray-500 text-xs w-28">Coordinator</th>
                 <th className="text-center px-3 py-3 font-semibold text-gray-500 text-xs w-24">Follow-up</th>
                 <th className="text-center px-3 py-3 font-semibold text-gray-500 text-xs w-32">Allegiance</th>
                 <th className="text-center px-3 py-3 font-semibold text-gray-500 text-xs w-20">Vote</th>
                 <th className="text-center px-3 py-3 font-semibold text-gray-500 text-xs w-20">Votes</th>
-                <th className="text-center px-3 py-3 font-semibold text-gray-500 text-xs w-10">
-                  <StickyNote className="w-3.5 h-3.5 mx-auto" />
-                </th>
+                <th className="text-left px-3 py-3 font-semibold text-gray-500 text-xs w-40">Notes</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((club, i) => {
-                const v = votes.get(club.id)!
-                const hasNotes = v.notes.trim().length > 0
-                const isExpanded = expandedNotes === club.id
+                const isSaving = saving.has(club.id)
                 return (
                   <tr key={club.id} className={`border-b border-gray-100 last:border-b-0 hover:bg-green-50/30 ${
-                    v.allegiance === 'ours' ? 'bg-green-50/20' :
-                    v.allegiance === 'opposition' ? 'bg-red-50/20' : ''
+                    club.allegiance === 'ours' ? 'bg-green-50/20' :
+                    club.allegiance === 'opposition' ? 'bg-red-50/20' : ''
                   }`}>
-                    <td className="px-3 py-2.5 text-gray-400 text-xs">{i + 1}</td>
+                    <td className="px-3 py-2.5 text-gray-400 text-xs">
+                      {isSaving ? <Loader2 className="w-3 h-3 animate-spin text-green-500" /> : i + 1}
+                    </td>
                     <td className="px-3 py-2.5 font-semibold text-gray-900 whitespace-nowrap">{club.name}</td>
                     <td className="px-3 py-2">
                       <select
-                        value={v.community}
-                        onChange={e => updateVote(club.id, { community: e.target.value as Community })}
+                        value={club.community}
+                        onChange={e => updateClub(club.id, { community: e.target.value })}
                         className={`w-full px-1.5 py-1 text-[11px] rounded border cursor-pointer focus:outline-none focus:ring-1 focus:ring-green-500/30 font-medium ${
-                          v.community ? `${COMMUNITY_COLORS[v.community].text} ${COMMUNITY_COLORS[v.community].bg} ${COMMUNITY_COLORS[v.community].border}` : 'text-gray-400 border-gray-200 bg-gray-50'
+                          club.community ? `${COMMUNITY_COLORS[club.community].text} ${COMMUNITY_COLORS[club.community].bg} ${COMMUNITY_COLORS[club.community].border}` : 'text-gray-400 border-gray-200 bg-gray-50'
                         }`}
                       >
                         <option value="">--</option>
@@ -499,11 +482,24 @@ export default function CommandCentre() {
                         ))}
                       </select>
                     </td>
-                    <td className="px-3 py-2.5 hidden xl:table-cell">
-                      <div className="space-y-0.5">
-                        {club.phone && <div className="text-xs text-gray-500 flex items-center gap-1"><Phone className="w-3 h-3" />{club.phone}</div>}
-                        {club.email && <div className="text-xs text-green-700 flex items-center gap-1"><Mail className="w-3 h-3" />{club.email}</div>}
-                        {!club.phone && !club.email && <span className="text-xs text-gray-300">&mdash;</span>}
+                    <td className="px-3 py-1.5">
+                      <div className="space-y-1">
+                        <input
+                          type="text"
+                          placeholder="Phone..."
+                          value={club.phone}
+                          onChange={e => setClubs(prev => prev.map(c => c.id === club.id ? { ...c, phone: e.target.value } : c))}
+                          onBlur={e => updateClub(club.id, { phone: e.target.value })}
+                          className="w-full px-2 py-0.5 text-xs border border-gray-200 rounded bg-white text-gray-700 placeholder:text-gray-300 focus:outline-none focus:ring-1 focus:ring-green-500/30 focus:border-green-500"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Email..."
+                          value={club.email}
+                          onChange={e => setClubs(prev => prev.map(c => c.id === club.id ? { ...c, email: e.target.value } : c))}
+                          onBlur={e => updateClub(club.id, { email: e.target.value })}
+                          className="w-full px-2 py-0.5 text-xs border border-gray-200 rounded bg-white text-green-700 placeholder:text-gray-300 focus:outline-none focus:ring-1 focus:ring-green-500/30 focus:border-green-500"
+                        />
                       </div>
                     </td>
                     <td className="px-3 py-2.5">
@@ -517,8 +513,12 @@ export default function CommandCentre() {
                       <input
                         type="text"
                         placeholder="Assign..."
-                        value={v.coordinator}
-                        onChange={e => updateVote(club.id, { coordinator: e.target.value })}
+                        value={club.coordinator}
+                        onChange={e => {
+                          // Local update only on typing
+                          setClubs(prev => prev.map(c => c.id === club.id ? { ...c, coordinator: e.target.value } : c))
+                        }}
+                        onBlur={e => updateClub(club.id, { coordinator: e.target.value })}
                         className="w-full px-2 py-1 text-xs border border-gray-200 rounded bg-white text-gray-800 placeholder:text-gray-300 focus:outline-none focus:ring-1 focus:ring-green-500/30 focus:border-green-500"
                       />
                     </td>
@@ -526,15 +526,15 @@ export default function CommandCentre() {
                       <button
                         onClick={() => cycleFollowUp(club.id)}
                         className={`w-full px-2 py-1 rounded text-[11px] font-semibold transition-colors cursor-pointer text-center border ${
-                          v.followUp === 'confirmed' ? 'bg-green-100 text-green-700 border-green-200' :
-                          v.followUp === 'contacted' ? 'bg-blue-100 text-blue-700 border-blue-200' :
-                          v.followUp === 'pending' ? 'bg-amber-100 text-amber-700 border-amber-200' :
+                          club.followUp === 'confirmed' ? 'bg-green-100 text-green-700 border-green-200' :
+                          club.followUp === 'contacted' ? 'bg-blue-100 text-blue-700 border-blue-200' :
+                          club.followUp === 'pending' ? 'bg-amber-100 text-amber-700 border-amber-200' :
                           'bg-gray-50 border-gray-200 text-gray-300'
                         }`}
                       >
-                        {v.followUp === 'confirmed' ? 'Confirmed' :
-                         v.followUp === 'contacted' ? 'Contacted' :
-                         v.followUp === 'pending' ? 'Pending' : '---'}
+                        {club.followUp === 'confirmed' ? 'Confirmed' :
+                         club.followUp === 'contacted' ? 'Contacted' :
+                         club.followUp === 'pending' ? 'Pending' : '---'}
                       </button>
                     </td>
                     <td className="px-3 py-2.5">
@@ -542,7 +542,7 @@ export default function CommandCentre() {
                         <button
                           onClick={() => toggleAllegiance(club.id, 'ours')}
                           className={`px-2 py-1 rounded-l text-[11px] font-semibold transition-colors cursor-pointer border ${
-                            v.allegiance === 'ours'
+                            club.allegiance === 'ours'
                               ? 'bg-green-600 text-white border-green-600'
                               : 'bg-white border-gray-200 text-gray-400 hover:text-green-600 hover:border-green-300'
                           }`}
@@ -552,7 +552,7 @@ export default function CommandCentre() {
                         <button
                           onClick={() => toggleAllegiance(club.id, 'neutral')}
                           className={`px-2 py-1 text-[11px] font-semibold transition-colors cursor-pointer border-y ${
-                            v.allegiance === 'neutral'
+                            club.allegiance === 'neutral'
                               ? 'bg-gray-500 text-white border-gray-500'
                               : 'bg-white border-gray-200 text-gray-400 hover:text-gray-600 hover:border-gray-400'
                           }`}
@@ -562,7 +562,7 @@ export default function CommandCentre() {
                         <button
                           onClick={() => toggleAllegiance(club.id, 'opposition')}
                           className={`px-2 py-1 rounded-r text-[11px] font-semibold transition-colors cursor-pointer border ${
-                            v.allegiance === 'opposition'
+                            club.allegiance === 'opposition'
                               ? 'bg-red-600 text-white border-red-600'
                               : 'bg-white border-gray-200 text-gray-400 hover:text-red-600 hover:border-red-300'
                           }`}
@@ -576,7 +576,7 @@ export default function CommandCentre() {
                         <button
                           onClick={() => toggleVote(club.id, 'yes')}
                           className={`px-2.5 py-1 rounded-l text-[11px] font-semibold transition-colors cursor-pointer border ${
-                            v.vote === 'yes'
+                            club.vote === 'yes'
                               ? 'bg-green-600 text-white border-green-600'
                               : 'bg-white border-gray-200 text-gray-400 hover:text-green-600'
                           }`}
@@ -586,7 +586,7 @@ export default function CommandCentre() {
                         <button
                           onClick={() => toggleVote(club.id, 'no')}
                           className={`px-2.5 py-1 rounded-r text-[11px] font-semibold transition-colors cursor-pointer border ${
-                            v.vote === 'no'
+                            club.vote === 'no'
                               ? 'bg-red-600 text-white border-red-600'
                               : 'bg-white border-gray-200 text-gray-400 hover:text-red-600'
                           }`}
@@ -598,7 +598,7 @@ export default function CommandCentre() {
                     <td className="px-3 py-2.5">
                       <div className="flex items-center justify-center gap-0.5">
                         <button
-                          onClick={() => setCount(club.id, v.count - 1)}
+                          onClick={() => setCount(club.id, club.voteCount - 1)}
                           className="w-5 h-5 flex items-center justify-center rounded border border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-400 text-xs cursor-pointer"
                         >
                           <ChevronDown className="w-3 h-3" />
@@ -606,12 +606,16 @@ export default function CommandCentre() {
                         <input
                           type="number"
                           min={0}
-                          value={v.count}
-                          onChange={e => setCount(club.id, parseInt(e.target.value) || 0)}
+                          value={club.voteCount}
+                          onChange={e => {
+                            const val = parseInt(e.target.value) || 0
+                            setClubs(prev => prev.map(c => c.id === club.id ? { ...c, voteCount: Math.max(0, val) } : c))
+                          }}
+                          onBlur={e => updateClub(club.id, { vote_count: Math.max(0, parseInt(e.target.value) || 0) })}
                           className="w-10 text-center text-xs border border-gray-200 rounded py-0.5 bg-white text-gray-800 font-medium [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
                         <button
-                          onClick={() => setCount(club.id, v.count + 1)}
+                          onClick={() => setCount(club.id, club.voteCount + 1)}
                           className="w-5 h-5 flex items-center justify-center rounded border border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-400 text-xs cursor-pointer"
                         >
                           <ChevronUp className="w-3 h-3" />
@@ -619,16 +623,14 @@ export default function CommandCentre() {
                       </div>
                     </td>
                     <td className="px-3 py-2.5">
-                      <button
-                        onClick={() => setExpandedNotes(isExpanded ? null : club.id)}
-                        className={`w-6 h-6 flex items-center justify-center rounded transition-colors cursor-pointer ${
-                          hasNotes ? 'bg-blue-100 text-blue-600 hover:bg-blue-200' :
-                          isExpanded ? 'bg-gray-200 text-gray-500' :
-                          'text-gray-300 hover:text-gray-500 hover:bg-gray-100'
-                        }`}
-                      >
-                        {isExpanded ? <X className="w-3 h-3" /> : <StickyNote className="w-3 h-3" />}
-                      </button>
+                      <input
+                        type="text"
+                        placeholder="Add note..."
+                        value={club.notes}
+                        onChange={e => setClubs(prev => prev.map(c => c.id === club.id ? { ...c, notes: e.target.value } : c))}
+                        onBlur={e => updateClub(club.id, { notes: e.target.value })}
+                        className="w-full px-2 py-1 text-xs border border-gray-200 rounded bg-white text-gray-800 placeholder:text-gray-300 focus:outline-none focus:ring-1 focus:ring-green-500/30 focus:border-green-500"
+                      />
                     </td>
                   </tr>
                 )
@@ -636,25 +638,6 @@ export default function CommandCentre() {
             </tbody>
           </table>
         </div>
-
-        {/* Expanded Notes Panel */}
-        {expandedNotes !== null && (
-          <div className="border-t border-gray-200 p-4 bg-gray-50">
-            <div className="flex items-center gap-2 mb-2">
-              <StickyNote className="w-4 h-4 text-blue-600" />
-              <span className="text-sm font-semibold text-gray-900">
-                Notes &mdash; {CLUBS.find(c => c.id === expandedNotes)?.name}
-              </span>
-            </div>
-            <textarea
-              value={votes.get(expandedNotes)?.notes ?? ''}
-              onChange={e => updateVote(expandedNotes, { notes: e.target.value })}
-              placeholder="Add notes about this club (strategy, concerns, intel, etc.)..."
-              rows={3}
-              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 resize-y shadow-sm"
-            />
-          </div>
-        )}
 
         {filtered.length === 0 && (
           <div className="py-12 text-center text-sm text-gray-400">No clubs match your search</div>
