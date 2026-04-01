@@ -88,6 +88,7 @@ export default function CommandCentre() {
   const [loading, setLoading] = useState(true)
   const [synced, setSynced] = useState(true)
   const [saving, setSaving] = useState<Set<number>>(new Set())
+  const [expandedCommunity, setExpandedCommunity] = useState<string | null>(null)
 
   // Load from Supabase
   useEffect(() => {
@@ -171,7 +172,7 @@ export default function CommandCentre() {
 
   const stats = useMemo(() => {
     let yes = 0, no = 0, totalVotes = 0, ours = 0, opposition = 0, neutral = 0
-    const communityBreakdown: Record<string, { total: number; ours: number; opposition: number; neutral: number; unassigned: number; voted: number; confirmed: number }> = {}
+    const communityBreakdown: Record<string, { total: number; ours: number; opposition: number; neutral: number; unassigned: number; voted: number; confirmed: number; clubs: Club[] }> = {}
     const coordinatorBreakdown: Record<string, { total: number; confirmed: number; contacted: number; pending: number; clubs: string[] }> = {}
 
     clubs.forEach(c => {
@@ -183,7 +184,8 @@ export default function CommandCentre() {
       if (c.allegiance === 'neutral') neutral++
 
       const comm = c.community || 'Unassigned'
-      if (!communityBreakdown[comm]) communityBreakdown[comm] = { total: 0, ours: 0, opposition: 0, neutral: 0, unassigned: 0, voted: 0, confirmed: 0 }
+      if (!communityBreakdown[comm]) communityBreakdown[comm] = { total: 0, ours: 0, opposition: 0, neutral: 0, unassigned: 0, voted: 0, confirmed: 0, clubs: [] }
+      communityBreakdown[comm].clubs.push(c)
       communityBreakdown[comm].total++
       if (c.allegiance === 'ours') communityBreakdown[comm].ours++
       else if (c.allegiance === 'opposition') communityBreakdown[comm].opposition++
@@ -360,32 +362,81 @@ export default function CommandCentre() {
             <BarChart3 className="w-4 h-4 text-green-700" />
             <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Community Intel</h2>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-2">
             {Object.entries(stats.communityBreakdown)
               .sort((a, b) => b[1].total - a[1].total)
               .map(([comm, data]) => {
                 const colors = COMMUNITY_COLORS[comm as Community] || COMMUNITY_COLORS['']
-                const oursPercent = data.total > 0 ? (data.ours / data.total) * 100 : 0
-                const oppPercent = data.total > 0 ? (data.opposition / data.total) * 100 : 0
-                const neutralPercent = data.total > 0 ? (data.neutral / data.total) * 100 : 0
+                const oursPercent    = data.total > 0 ? (data.ours       / data.total) * 100 : 0
+                const oppPercent     = data.total > 0 ? (data.opposition / data.total) * 100 : 0
+                const neutralPercent = data.total > 0 ? (data.neutral    / data.total) * 100 : 0
+                const isExpanded = expandedCommunity === comm
+                const sortedClubs = [...data.clubs].sort((a, b) => {
+                  const order = { ours: 0, neutral: 1, opposition: 2 }
+                  return (order[a.allegiance ?? 'neutral'] ?? 1) - (order[b.allegiance ?? 'neutral'] ?? 1)
+                })
                 return (
-                  <div key={comm}>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${colors.bg} ${colors.text} border ${colors.border}`}>
-                        {comm}
-                      </span>
-                      <div className="flex items-center gap-3 text-xs font-medium">
-                        <span className="text-green-600">{data.ours} ours</span>
-                        <span className="text-red-500">{data.opposition} opp</span>
-                        <span className="text-gray-400">{data.neutral} mid</span>
-                        <span className="text-gray-800 font-bold">{data.total}</span>
+                  <div key={comm} className="rounded-lg border border-gray-100 overflow-hidden">
+                    {/* Summary row — clickable */}
+                    <button
+                      onClick={() => setExpandedCommunity(isExpanded ? null : comm)}
+                      className="w-full text-left px-3 py-2 hover:bg-gray-50 transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${colors.bg} ${colors.text} border ${colors.border}`}>
+                            {comm}
+                          </span>
+                          {isExpanded
+                            ? <ChevronUp className="w-3 h-3 text-gray-400" />
+                            : <ChevronDown className="w-3 h-3 text-gray-400" />}
+                        </div>
+                        <div className="flex items-center gap-3 text-xs font-medium">
+                          <span className="text-green-600">{data.ours} ours</span>
+                          <span className="text-red-500">{data.opposition} opp</span>
+                          <span className="text-gray-400">{data.neutral} mid</span>
+                          <span className="text-gray-800 font-bold">{data.total}</span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden flex">
-                      <div className="bg-green-500 h-full transition-all" style={{ width: `${oursPercent}%` }} />
-                      <div className="bg-gray-400 h-full transition-all" style={{ width: `${neutralPercent}%` }} />
-                      <div className="bg-red-500 h-full transition-all" style={{ width: `${oppPercent}%` }} />
-                    </div>
+                      <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden flex">
+                        <div className="bg-green-500 h-full transition-all" style={{ width: `${oursPercent}%` }} />
+                        <div className="bg-gray-400 h-full transition-all" style={{ width: `${neutralPercent}%` }} />
+                        <div className="bg-red-500 h-full transition-all" style={{ width: `${oppPercent}%` }} />
+                      </div>
+                    </button>
+
+                    {/* Drill-down: clubs in this community */}
+                    {isExpanded && (
+                      <div className="border-t border-gray-100 bg-gray-50 px-3 py-2 space-y-1">
+                        {sortedClubs.map(club => (
+                          <div key={club.id} className="flex items-center justify-between py-0.5">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                                club.allegiance === 'ours'       ? 'bg-green-500' :
+                                club.allegiance === 'opposition' ? 'bg-red-500'   :
+                                club.allegiance === 'neutral'    ? 'bg-gray-400'  :
+                                'bg-gray-300'
+                              }`} />
+                              <span className="text-xs text-gray-700 truncate">{club.name}</span>
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                              <span className="text-[10px] text-gray-400 font-medium">
+                                ({club.voteCount} vote{club.voteCount !== 1 ? 's' : ''})
+                              </span>
+                              {club.allegiance && (
+                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                                  club.allegiance === 'ours'       ? 'bg-green-100 text-green-700' :
+                                  club.allegiance === 'opposition' ? 'bg-red-100 text-red-700'     :
+                                  'bg-gray-100 text-gray-500'
+                                }`}>
+                                  {club.allegiance}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )
               })}
