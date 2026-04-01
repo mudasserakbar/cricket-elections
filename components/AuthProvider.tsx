@@ -9,6 +9,9 @@ export type UserRole = 'super_admin' | 'admin' | 'viewer' | 'pending' | null
 const ROLE_CACHE_KEY = 'qcf_role_v1'
 const EMAIL_CACHE_KEY = 'qcf_email_v1'
 
+// These emails are always super_admin, regardless of DB state
+const SUPER_ADMIN_EMAILS = ['mudasserakbar@gmail.com']
+
 function getCachedRole(email: string): UserRole {
   try {
     const cachedEmail = localStorage.getItem(EMAIL_CACHE_KEY)
@@ -36,6 +39,10 @@ function clearRoleCache() {
 async function fetchRoleFromDB(email: string): Promise<UserRole> {
   try {
     const normalizedEmail = email.trim().toLowerCase()
+
+    // Super admins are hardcoded — never let DB or network issues demote them
+    if (SUPER_ADMIN_EMAILS.includes(normalizedEmail)) return 'super_admin'
+
     const { data } = await supabase
       .from('user_roles')
       .select('role')
@@ -117,10 +124,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (mounted) setLoading(false)
     })
 
-    // Only listen for actual auth changes (sign in, sign out) — not INITIAL_SESSION
+    // Only listen for actual sign in / sign out — ignore INITIAL_SESSION and TOKEN_REFRESHED
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return
-      if (event === 'INITIAL_SESSION') return
+      if (event !== 'SIGNED_IN' && event !== 'SIGNED_OUT') return
 
       setSession(session)
       setUser(session?.user ?? null)
