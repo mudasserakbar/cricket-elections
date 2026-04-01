@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { AuthProvider } from "@/components/AuthProvider";
 
 export const metadata: Metadata = {
   title: "QCF Command Centre",
@@ -13,7 +14,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-[#F8F7F4]">{children}</body>
+      <body className="min-h-screen bg-[#F8F7F4]">
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }

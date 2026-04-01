@@ -7,6 +7,8 @@ import {
   Shield, Eye, Phone, Mail, ChevronRight, X, Loader2, Cloud, CloudOff
 } from 'lucide-react'
 import { supabase, type ClubRow } from '@/lib/supabase'
+import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { NavBar } from '@/components/NavBar'
 
 type Community = 'Pakistani' | 'Punjabi' | 'Gujarati' | 'Tamil' | 'Bengali' | 'South Indian' | 'North Indian' | 'Caribbean' | 'Mixed' | ''
 type Allegiance = 'ours' | 'opposition' | 'neutral' | null
@@ -228,16 +230,21 @@ export default function CommandCentre() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-green-600 mx-auto mb-3" />
-          <p className="text-sm text-gray-500">Loading Command Centre...</p>
+      <ProtectedRoute>
+        <NavBar />
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin text-green-600 mx-auto mb-3" />
+            <p className="text-sm text-gray-500">Loading Command Centre...</p>
+          </div>
         </div>
-      </div>
+      </ProtectedRoute>
     )
   }
 
   return (
+    <ProtectedRoute>
+    <NavBar />
     <div className="max-w-[1600px] mx-auto px-4 py-6 sm:px-6">
       {/* Header */}
       <div className="mb-8 flex items-start justify-between">
@@ -644,6 +651,7 @@ export default function CommandCentre() {
         )}
       </div>
     </div>
+    </ProtectedRoute>
   )
 }
 

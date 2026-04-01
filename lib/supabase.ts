@@ -20,3 +20,21 @@ export interface ClubRow {
   follow_up: string | null
   notes: string
 }
+
+export interface AuthLog {
+  id: string
+  user_email: string
+  action: 'login' | 'logout'
+  ip_address: string | null
+  user_agent: string | null
+  created_at: string
+}
+
+export async function logAuthEvent(email: string, action: 'login' | 'logout') {
+  const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : null
+  await supabase.from('auth_logs').insert({
+    user_email: email,
+    action,
+    user_agent: userAgent,
+  })
+}
