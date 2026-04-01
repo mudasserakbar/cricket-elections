@@ -31,6 +31,27 @@ export interface AuthLog {
   created_at: string
 }
 
+export interface DiscussionTopic {
+  id: string
+  title: string
+  description: string
+  category: 'Governance' | 'Vision' | 'Infrastructure' | 'Integrity'
+  pinned: boolean
+  created_by: string
+  created_at: string
+}
+
+export interface DiscussionPost {
+  id: string
+  topic_id: string
+  author_email: string
+  author_role: 'super_admin' | 'admin' | 'viewer'
+  content: string
+  pinned: boolean
+  deleted: boolean
+  created_at: string
+}
+
 export async function logAuthEvent(email: string, action: 'login' | 'logout') {
   try {
     const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : null
