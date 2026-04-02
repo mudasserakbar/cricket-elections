@@ -274,7 +274,7 @@ export default function ChatPage() {
                   <div key={msg.id} className="flex items-center gap-2 justify-center py-1">
                     <div className="flex-1 h-px bg-gray-100" />
                     <span className="text-[11px] text-gray-400 whitespace-nowrap px-2">
-                      🏏 {msg.author_email} joined · {timeStr(msg.created_at)}
+                      🏏 {msg.author_email?.split('@')[0]} joined · {timeStr(msg.created_at)}
                     </span>
                     <div className="flex-1 h-px bg-gray-100" />
                   </div>

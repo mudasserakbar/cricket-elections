@@ -283,7 +283,7 @@ export default function CommandCentre() {
               <Target className="w-5 h-5 text-white" />
             </div>
             <div>
-              <p className="text-[10px] font-mono text-green-700 tracking-[0.2em] uppercase font-semibold">Quebec Cricket Federation</p>
+              <p className="text-[10px] font-mono text-green-700 tracking-[0.2em] uppercase font-semibold">Cricket Election Command Centre</p>
               <h1 className="text-2xl font-bold text-gray-900 leading-tight">Command Centre</h1>
             </div>
           </div>

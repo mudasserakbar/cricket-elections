@@ -4,8 +4,8 @@ import { AuthProvider } from "@/components/AuthProvider";
 import { FloatingChat } from "@/components/FloatingChat";
 
 export const metadata: Metadata = {
-  title: "QCF Command Centre",
-  description: "Quebec Cricket Federation — Election Operations Command Centre",
+  title: "Cricket Election Command Centre",
+  description: "Cricket Election Command Centre — Election Operations",
 };
 
 export default function RootLayout({

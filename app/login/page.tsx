@@ -86,7 +86,7 @@ export default function LoginPage() {
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-600 to-green-800 flex items-center justify-center mx-auto mb-4 shadow-lg">
             <Target className="w-7 h-7 text-white" />
           </div>
-          <p className="text-[10px] font-mono text-green-700 tracking-[0.2em] uppercase font-semibold">Quebec Cricket Federation</p>
+          <p className="text-[10px] font-mono text-green-700 tracking-[0.2em] uppercase font-semibold">Cricket Election Command Centre</p>
           <h1 className="text-2xl font-bold text-gray-900 mt-1">Command Centre</h1>
         </div>
 
@@ -176,7 +176,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <p className="text-center text-[10px] text-gray-400 mt-6">QCF Election Operations • Secured</p>
+        <p className="text-center text-[10px] text-gray-400 mt-6">Cricket Election Command Centre • Secured</p>
       </div>
     </div>
   )
