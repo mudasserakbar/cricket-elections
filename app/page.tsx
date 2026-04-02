@@ -79,8 +79,9 @@ function timeAgo(iso: string): string {
 }
 
 export default function CommandCentre() {
-  const { isAdmin } = useAuth()
+  const { isAdmin, isSuperAdmin } = useAuth()
   const canEdit = isAdmin
+  const canEditVoteCount = isSuperAdmin
   const [clubs, setClubs] = useState<Club[]>([])
   const [search, setSearch] = useState("")
   const [communityFilter, setCommunityFilter] = useState<Community | 'all'>('all')
@@ -700,31 +701,35 @@ export default function CommandCentre() {
                     </td>
                     <td className="px-3 py-2.5">
                       <div className="flex items-center justify-center gap-0.5">
-                        <button
-                          onClick={() => setCount(club.id, club.voteCount - 1)}
-                          className="w-5 h-5 flex items-center justify-center rounded border border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-400 text-xs cursor-pointer"
-                        >
-                          <ChevronDown className="w-3 h-3" />
-                        </button>
+                        {canEditVoteCount && (
+                          <button
+                            onClick={() => setCount(club.id, club.voteCount - 1)}
+                            className="w-5 h-5 flex items-center justify-center rounded border border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-400 text-xs cursor-pointer"
+                          >
+                            <ChevronDown className="w-3 h-3" />
+                          </button>
+                        )}
                         <input
                           type="number"
                           min={0}
                           value={club.voteCount}
-                          readOnly={!canEdit}
+                          readOnly={!canEditVoteCount}
                           onChange={e => {
-                            if (!canEdit) return
+                            if (!canEditVoteCount) return
                             const val = parseInt(e.target.value) || 0
                             setClubs(prev => prev.map(c => c.id === club.id ? { ...c, voteCount: Math.max(0, val) } : c))
                           }}
-                          onBlur={e => canEdit && updateClub(club.id, { vote_count: Math.max(0, parseInt(e.target.value) || 0) })}
+                          onBlur={e => canEditVoteCount && updateClub(club.id, { vote_count: Math.max(0, parseInt(e.target.value) || 0) })}
                           className="w-10 text-center text-xs border border-gray-200 rounded py-0.5 bg-white text-gray-800 font-medium [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
-                        <button
-                          onClick={() => setCount(club.id, club.voteCount + 1)}
-                          className="w-5 h-5 flex items-center justify-center rounded border border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-400 text-xs cursor-pointer"
-                        >
-                          <ChevronUp className="w-3 h-3" />
-                        </button>
+                        {canEditVoteCount && (
+                          <button
+                            onClick={() => setCount(club.id, club.voteCount + 1)}
+                            className="w-5 h-5 flex items-center justify-center rounded border border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-400 text-xs cursor-pointer"
+                          >
+                            <ChevronUp className="w-3 h-3" />
+                          </button>
+                        )}
                       </div>
                     </td>
                     <td className="px-3 py-2.5">
