@@ -176,12 +176,13 @@ export default function CommandCentre() {
     const coordinatorBreakdown: Record<string, { total: number; confirmed: number; contacted: number; pending: number; clubs: string[] }> = {}
 
     clubs.forEach(c => {
-      if (c.vote === 'yes') yes++
-      if (c.vote === 'no') no++
-      totalVotes += c.voteCount
-      if (c.allegiance === 'ours') ours++
-      if (c.allegiance === 'opposition') opposition++
-      if (c.allegiance === 'neutral') neutral++
+      const v = c.voteCount || 1
+      if (c.vote === 'yes') yes += v
+      if (c.vote === 'no') no += v
+      totalVotes += v
+      if (c.allegiance === 'ours') ours += v
+      if (c.allegiance === 'opposition') opposition += v
+      if (c.allegiance === 'neutral') neutral += v
 
       const comm = c.community || 'Unassigned'
       if (!communityBreakdown[comm]) communityBreakdown[comm] = { total: 0, ours: 0, opposition: 0, neutral: 0, unassigned: 0, voted: 0, confirmed: 0, clubs: [] }
@@ -209,12 +210,12 @@ export default function CommandCentre() {
     const noReps = clubs.filter(c => !c.admin1 && !c.admin2).length
     const noCoordinator = clubs.filter(c => !c.coordinator).length
     const withNotes = clubs.filter(c => c.notes.trim()).length
-    const unassignedAllegiance = clubs.length - ours - opposition - neutral
-    const confirmedFollowUp = clubs.filter(c => c.followUp === 'confirmed').length
-    const contactedFollowUp = clubs.filter(c => c.followUp === 'contacted').length
+    const unassignedAllegiance = totalVotes - ours - opposition - neutral
+    const confirmedFollowUp = clubs.filter(c => c.followUp === 'confirmed').reduce((s, c) => s + (c.voteCount || 1), 0)
+    const contactedFollowUp = clubs.filter(c => c.followUp === 'contacted').reduce((s, c) => s + (c.voteCount || 1), 0)
 
     return {
-      total: clubs.length, yes, no, pending: clubs.length - yes - no, totalVotes,
+      total: clubs.length, yes, no, pending: totalVotes - yes - no, totalVotes,
       ours, opposition, neutral, unassignedAllegiance,
       communityBreakdown, coordinatorBreakdown,
       noContact, noReps, noCoordinator, withNotes,
@@ -246,7 +247,7 @@ export default function CommandCentre() {
     updateClub(clubId, { vote_count: Math.max(0, count) })
   }
 
-  const majority = Math.ceil(stats.total / 2) || 1
+  const majority = Math.ceil(stats.totalVotes / 2) || 1
   const winProbText = stats.ours >= majority ? 'Majority Secured' :
     stats.ours + stats.neutral >= majority ? 'Possible with Neutrals' :
     `Need ${majority - stats.ours} more`
@@ -304,7 +305,7 @@ export default function CommandCentre() {
             <TrendingUp className="w-3 h-3" />
             {winProbText}
           </div>
-          <p className="text-xs text-gray-400 mt-1">Majority: {majority} clubs</p>
+          <p className="text-xs text-gray-400 mt-1">Majority: {majority} votes</p>
         </div>
       </div>
 
