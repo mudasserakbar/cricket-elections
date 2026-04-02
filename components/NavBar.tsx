@@ -7,9 +7,10 @@ import Link from 'next/link'
 import { useState } from 'react'
 
 export function NavBar() {
-  const { user, isAdmin, isSuperAdmin, role, signOut } = useAuth()
+  const { user, isAdmin, isSuperAdmin, role, signOut, onlineUsers } = useAuth()
   const router = useRouter()
   const [loggingOut, setLoggingOut] = useState(false)
+  const [showOnline, setShowOnline] = useState(false)
 
   async function handleLogout() {
     setLoggingOut(true)
@@ -83,6 +84,47 @@ export function NavBar() {
             </>
           )}
           <div className="h-4 w-px bg-gray-200" />
+
+          {/* Live presence indicator */}
+          <div className="relative">
+            <button
+              onClick={() => setShowOnline(p => !p)}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-green-50 transition cursor-pointer"
+              title="Who's online now"
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+              </span>
+              <span className="text-[11px] font-semibold text-green-700">{onlineUsers.length}</span>
+            </button>
+
+            {showOnline && (
+              <div className="absolute right-0 top-8 w-64 bg-white border border-gray-200 rounded-xl shadow-lg z-50 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold mb-2">Live right now</p>
+                {onlineUsers.length === 0 ? (
+                  <p className="text-xs text-gray-400">Nobody online</p>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {onlineUsers.map(u => (
+                      <li key={u.email} className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
+                        <span className="text-xs text-gray-700 truncate flex-1">{u.email}</span>
+                        <span className={`text-[9px] px-1 py-0.5 rounded font-bold flex-shrink-0 ${
+                          u.role === 'super_admin' ? 'bg-yellow-100 text-yellow-800' :
+                          u.role === 'admin' ? 'bg-purple-100 text-purple-700' :
+                          'bg-blue-100 text-blue-700'
+                        }`}>
+                          {u.role === 'super_admin' ? '⭐' : u.role?.toUpperCase()}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+
           <div className="hidden md:flex items-center gap-1.5">
             <span className="text-[11px] text-gray-400">{user.email}</span>
             <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${

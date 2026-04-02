@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import { supabase, type AuthLog } from '@/lib/supabase'
+import { useAuth } from '@/components/AuthProvider'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { NavBar } from '@/components/NavBar'
-import { ScrollText, LogIn, LogOut, Loader2, RefreshCw, Monitor } from 'lucide-react'
+import { ScrollText, LogIn, LogOut, Loader2, RefreshCw, Monitor, Radio } from 'lucide-react'
 
 export default function LogsPage() {
+  const { onlineUsers } = useAuth()
   const [logs, setLogs] = useState<AuthLog[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -57,7 +59,7 @@ export default function LogsPage() {
   }
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute adminOnly>
       <NavBar />
       <div className="max-w-4xl mx-auto px-4 py-6 sm:px-6">
         {/* Header */}
@@ -79,6 +81,40 @@ export default function LogsPage() {
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </button>
+        </div>
+
+        {/* Live Now */}
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Radio className="w-4 h-4 text-green-600" />
+            <span className="text-sm font-bold text-green-800">Live Right Now</span>
+            <span className="ml-auto flex items-center gap-1">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+              </span>
+              <span className="text-xs font-semibold text-green-700">{onlineUsers.length} online</span>
+            </span>
+          </div>
+          {onlineUsers.length === 0 ? (
+            <p className="text-xs text-green-600">Nobody online right now</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {onlineUsers.map(u => (
+                <div key={u.email} className="flex items-center gap-1.5 bg-white border border-green-200 rounded-lg px-2.5 py-1.5 shadow-sm">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
+                  <span className="text-xs text-gray-700 font-medium">{u.email}</span>
+                  <span className={`text-[9px] px-1 py-0.5 rounded font-bold ${
+                    u.role === 'super_admin' ? 'bg-yellow-100 text-yellow-800' :
+                    u.role === 'admin' ? 'bg-purple-100 text-purple-700' :
+                    'bg-blue-100 text-blue-700'
+                  }`}>
+                    {u.role === 'super_admin' ? '⭐' : u.role?.toUpperCase()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Stats */}
