@@ -230,7 +230,7 @@ export default function CandidatesPage() {
   const totalSeats = POSITIONS.reduce((s, p) => s + p.max, 0)
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute adminOnly>
       <NavBar />
       <div className="max-w-5xl mx-auto px-4 py-6 sm:px-6">
 

@@ -37,42 +37,35 @@ export function NavBar() {
             <Brain className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Strategy</span>
           </Link>
-          <Link
-            href="/candidates"
-            className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-green-700 transition px-2 py-1.5 rounded-lg hover:bg-green-50"
-          >
-            <Crown className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Candidates</span>
-          </Link>
-          <Link
-            href="/board"
-            className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-red-700 transition px-2 py-1.5 rounded-lg hover:bg-red-50"
-          >
-            <Swords className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">War Room</span>
-          </Link>
-          <Link
-            href="/discussion"
-            className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-green-700 transition px-2 py-1.5 rounded-lg hover:bg-green-50"
-          >
-            <MessageSquare className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Discussion</span>
-          </Link>
-          <Link
-            href="/chat"
-            className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-green-700 transition px-2 py-1.5 rounded-lg hover:bg-green-50"
-          >
-            <MessageCircle className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Chat</span>
-          </Link>
           {isAdmin && (
             <>
               <Link
-                href="/users"
+                href="/candidates"
                 className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-green-700 transition px-2 py-1.5 rounded-lg hover:bg-green-50"
               >
-                <Users className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Users</span>
+                <Crown className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Candidates</span>
+              </Link>
+              <Link
+                href="/board"
+                className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-red-700 transition px-2 py-1.5 rounded-lg hover:bg-red-50"
+              >
+                <Swords className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">War Room</span>
+              </Link>
+              <Link
+                href="/discussion"
+                className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-green-700 transition px-2 py-1.5 rounded-lg hover:bg-green-50"
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Discussion</span>
+              </Link>
+              <Link
+                href="/chat"
+                className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-green-700 transition px-2 py-1.5 rounded-lg hover:bg-green-50"
+              >
+                <MessageCircle className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Chat</span>
               </Link>
               <Link
                 href="/logs"
@@ -82,6 +75,15 @@ export function NavBar() {
                 <span className="hidden sm:inline">Logs</span>
               </Link>
             </>
+          )}
+          {isSuperAdmin && (
+            <Link
+              href="/users"
+              className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-green-700 transition px-2 py-1.5 rounded-lg hover:bg-green-50"
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Users</span>
+            </Link>
           )}
           <div className="h-4 w-px bg-gray-200" />
 

@@ -206,7 +206,7 @@ export default function ChatPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
-    <ProtectedRoute>
+    <ProtectedRoute adminOnly>
       <NavBar />
       <div className="max-w-2xl mx-auto px-4 sm:px-6 flex flex-col" style={{ height: 'calc(100vh - 48px)' }}>
 

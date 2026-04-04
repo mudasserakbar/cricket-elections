@@ -139,7 +139,7 @@ export default function TopicPage({ params }: { params: Promise<{ topicId: strin
   const canPost = !!user && !isPending && !!role && role !== 'pending'
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute adminOnly>
       <NavBar />
       <div className="max-w-3xl mx-auto px-4 py-6 sm:px-6">
 

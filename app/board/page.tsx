@@ -124,7 +124,7 @@ export default function BoardPage() {
   }).length
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute adminOnly>
       <NavBar />
       <div className="min-h-screen bg-gray-950 text-white">
         <div className="max-w-5xl mx-auto px-4 py-6 sm:px-6">

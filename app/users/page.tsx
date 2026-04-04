@@ -74,7 +74,7 @@ export default function UsersPage() {
   }
 
   return (
-    <ProtectedRoute adminOnly>
+    <ProtectedRoute superAdminOnly>
       <NavBar />
       <div className="max-w-3xl mx-auto px-4 py-6 sm:px-6">
         <div className="flex items-center justify-between mb-6">

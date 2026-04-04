@@ -48,7 +48,7 @@ function Avatar({ email, role }: { email: string; role: string }) {
 const PAGE_SIZE = 50
 
 export function FloatingChat() {
-  const { user, role, loading: authLoading } = useAuth()
+  const { user, role, loading: authLoading, isAdmin } = useAuth()
   const [open, setOpen]               = useState(false)
   const [minimised, setMinimised]     = useState(false)
   const [messages, setMessages]       = useState<ChatMessage[]>([])
@@ -66,7 +66,7 @@ export function FloatingChat() {
   const announcedRef = useRef(false)
   const channelRef   = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
-  const isLoggedIn = !!user && !!role && !authLoading
+  const isLoggedIn = !!user && !!role && !authLoading && isAdmin
 
   // ── Set up real-time channel once user is logged in ───────────────────────
   useEffect(() => {

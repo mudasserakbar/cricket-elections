@@ -68,7 +68,7 @@ export default function DiscussionPage() {
   const categoryOrder = ['Governance', 'Vision', 'Infrastructure', 'Integrity']
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute adminOnly>
       <NavBar />
       <div className="max-w-3xl mx-auto px-4 py-6 sm:px-6">
 
