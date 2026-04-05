@@ -183,6 +183,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return
         }
 
+        // Log actual sign-in events (not page refreshes — those are INITIAL_SESSION)
+        if (event === 'SIGNED_IN') {
+          logAuthEvent(email, 'login')
+        }
+
         // ── Hardcoded super-admins: instant ───────────────────────────────
         if (SUPER_ADMINS.has(email)) {
           setRole('super_admin')
@@ -192,21 +197,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return
         }
 
-        // ── Regular users: cache first, then verify ───────────────────────
+        // ── Regular users: show cached role instantly for UI, join presence
+        //    only once after DB resolves to avoid double-subscribe flicker ──
         const cached = cacheGet(email)
         if (cached) {
           setRole(cached)
-          joinPresence(email, cached)
           setLoading(false)
         }
 
         const fresh = await resolveRole(email)
         if (!mounted) return
 
-        if (fresh) {
-          setRole(fresh)
-          cacheSet(email, fresh)
-          joinPresence(email, fresh)
+        const finalRole = fresh ?? cached
+        if (finalRole) {
+          setRole(finalRole)
+          cacheSet(email, finalRole)
+          joinPresence(email, finalRole)   // join presence exactly once
         }
         setLoading(false)
       }
@@ -235,7 +241,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) return { error: error.message }
-    await logAuthEvent(email.trim().toLowerCase(), 'login')
+    // Login is logged in onAuthStateChange SIGNED_IN to catch all auth methods
     return { error: null }
   }, [])
 
